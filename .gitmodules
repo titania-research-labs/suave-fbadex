@@ -4,3 +4,6 @@
 [submodule "lib/suave-std"]
 	path = lib/suave-std
 	url = https://github.com/flashbots/suave-std
+[submodule "lib/openzeppelin-contracts"]
+	path = lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
