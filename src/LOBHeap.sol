@@ -242,8 +242,8 @@ library LOBHeap {
         arrSetMetadata(am);
 
         // Get the item we're deleting to return it
-        bytes memory ordBytes = arrGet(am, lastIndex);
-        LOBOrder memory deletedItem = abi.decode(ordBytes, (LOBOrder));
+        bytes memory ordBytesDel = arrGet(am, lastIndex);
+        LOBOrder memory deletedItem = abi.decode(ordBytesDel, (LOBOrder));
 
         // TODO - Are we deleting the map value here?
         // mapWrite(mm, ordBytesDel.clientId, abi.encode(index));

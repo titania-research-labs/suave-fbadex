@@ -12,6 +12,15 @@ contract LOB {
 
     address[] addressList;
 
+    // Need to maintain separate heaps for bids and asks
+    Suave.DataId public askArrayRef;
+    Suave.DataId public askMapRef;
+    Suave.DataId public bidArrayRef;
+    Suave.DataId public bidMapRef;
+
+    // Simplifies placeOrder logic, will not actually be used for publicly storing fills!
+    Fill[] public fills;
+
     struct Fill {
         uint amount;
         uint price;
@@ -27,18 +36,9 @@ contract LOB {
         uint256 amount;
     }
 
-    Fill[] public fills;
-    // event FillEvent(Fill[] fills);
     event FillEvent(Fill);
-
     event OrderPlace(uint256 price, bool side, uint256 amount);
     event OrderCancel(uint256 price, bool side, uint256 amount);
-
-    // Need to maintain separate heaps for bids and asks
-    Suave.DataId public askArrayRef;
-    Suave.DataId public askMapRef;
-    Suave.DataId public bidArrayRef;
-    Suave.DataId public bidMapRef;
 
     constructor() {
         addressList = new address[](1);
@@ -107,8 +107,6 @@ contract LOB {
             emit FillEvent(_fills[i]);
         }
     }
-
-    function nullCallback() public payable {}
 
     function placeOrderCallback(
         PlaceResult memory orderResult,
@@ -179,11 +177,10 @@ contract LOB {
             ISSELL
         );
 
-        // Fill[] memory fills;
-
         while (bestBid.price >= bestAsk.price) {
             uint fillAmount;
             uint fillPrice;
+
             if (ord.side == ISBUY) {
                 fillPrice = bestAsk.price;
             } else {
@@ -216,7 +213,7 @@ contract LOB {
             }
             // And append a fill to our fills list...
             Fill memory fill = Fill(fillAmount, fillPrice);
-            // fills.push(fill);
+            fills.push(fill);
         }
 
         // Assuming order placement was always successful?
