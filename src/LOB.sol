@@ -16,10 +16,23 @@ contract LOB {
         uint amount;
         uint price;
     }
+    struct PlaceResult {
+        uint256 price;
+        bool side;
+        uint256 amount;
+    }
+    struct CancelResult {
+        uint256 price;
+        bool side;
+        uint256 amount;
+    }
 
     Fill[] public fills;
+    // event FillEvent(Fill[] fills);
+    event FillEvent(Fill);
 
-    event FillEvent(Fill[] fills);
+    event OrderPlace(uint256 price, bool side, uint256 amount);
+    event OrderCancel(uint256 price, bool side, uint256 amount);
 
     // Need to maintain separate heaps for bids and asks
     Suave.DataId public askArrayRef;
@@ -88,14 +101,36 @@ contract LOB {
             );
     }
 
-    function displayFills(Fill[] memory fills_) public payable {
-        for (uint256 i = 0; i < fills_.length; i++) {
-            console.log(fills_[i].amount, fills_[i].price);
+    function displayFills(Fill[] memory _fills) public payable {
+        for (uint256 i = 0; i < _fills.length; i++) {
+            console.log(_fills[i].amount, _fills[i].price);
+            emit FillEvent(_fills[i]);
         }
-        emit FillEvent(fills_);
     }
 
     function nullCallback() public payable {}
+
+    function placeOrderCallback(
+        PlaceResult memory orderResult,
+        Fill[] memory _fills
+    ) public payable {
+        emit OrderPlace(
+            orderResult.price,
+            orderResult.side,
+            orderResult.amount
+        );
+        displayFills(_fills);
+    }
+
+    function cancelOrderCallback(
+        CancelResult memory orderResult
+    ) public payable {
+        emit OrderCancel(
+            orderResult.price,
+            orderResult.side,
+            orderResult.amount
+        );
+    }
 
     function initLOBCallback(
         Suave.DataId _bidArrayRef,
@@ -144,6 +179,8 @@ contract LOB {
             ISSELL
         );
 
+        // Fill[] memory fills;
+
         while (bestBid.price >= bestAsk.price) {
             uint fillAmount;
             uint fillPrice;
@@ -179,10 +216,13 @@ contract LOB {
             }
             // And append a fill to our fills list...
             Fill memory fill = Fill(fillAmount, fillPrice);
-            fills.push(fill);
+            // fills.push(fill);
         }
 
-        return abi.encodeWithSelector(this.displayFills.selector, fills);
+        // Assuming order placement was always successful?
+        PlaceResult memory pr = PlaceResult(ord.price, ord.side, ord.amount);
+        return
+            abi.encodeWithSelector(this.placeOrderCallback.selector, pr, fills);
     }
 
     /**
@@ -192,6 +232,7 @@ contract LOB {
         string memory clientId,
         bool side
     ) external returns (bytes memory) {
+        LOBHeap.LOBOrder memory ord;
         if (side == ISBUY) {
             LOBHeap.ArrayMetadata memory bidAm = LOBHeap.arrGetMetadata(
                 bidArrayRef
@@ -199,7 +240,7 @@ contract LOB {
             LOBHeap.MapMetadata memory bidMm = LOBHeap.mapGetMetadata(
                 bidMapRef
             );
-            LOBHeap.deleteOrder(bidAm, bidMm, clientId);
+            ord = LOBHeap.deleteOrder(bidAm, bidMm, clientId);
         } else if (side == ISSELL) {
             LOBHeap.ArrayMetadata memory askAm = LOBHeap.arrGetMetadata(
                 askArrayRef
@@ -207,9 +248,18 @@ contract LOB {
             LOBHeap.MapMetadata memory askMm = LOBHeap.mapGetMetadata(
                 askMapRef
             );
-            LOBHeap.deleteOrder(askAm, askMm, clientId);
+            ord = LOBHeap.deleteOrder(askAm, askMm, clientId);
         }
 
-        return abi.encodeWithSelector(this.nullCallback.selector);
+        CancelResult memory orderResult = CancelResult(
+            ord.price,
+            ord.side,
+            ord.amount
+        );
+        return
+            abi.encodeWithSelector(
+                this.cancelOrderCallback.selector,
+                orderResult
+            );
     }
 }

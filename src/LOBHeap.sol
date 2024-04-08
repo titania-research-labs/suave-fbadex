@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "suave-std/suavelib/Suave.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "forge-std/console.sol";
 
 // Library with a heap specifically built for a limit orderbook
 
@@ -41,7 +42,8 @@ library LOBHeap {
         uint256 arrLen = arrAppend(am, val);
 
         // Want our map to be from clientId to array index
-        bytes memory val2 = abi.encode(arrLen);
+        // Want to store the index here, not arrLen, so subtract 1
+        bytes memory val2 = abi.encode(arrLen - 1);
         mapWrite(mm, ord.clientId, val2);
 
         heapifyUp(am, mm, arrLen - 1);
@@ -54,10 +56,11 @@ library LOBHeap {
         ArrayMetadata memory am,
         MapMetadata memory mm,
         string memory clientId
-    ) internal {
+    ) internal returns (LOBOrder memory) {
         bytes memory indBytes = mapGet(mm, clientId);
         uint256 ind = abi.decode(indBytes, (uint256));
-        deleteAtIndex(am, mm, ind);
+        LOBOrder memory ord = deleteAtIndex(am, mm, ind);
+        return ord;
     }
 
     /**
@@ -185,7 +188,7 @@ library LOBHeap {
     }
 
     /**
-     * @notice Appends to end of array
+     * @notice Appends to end of array and returns current array length
      */
     function arrAppend(
         ArrayMetadata memory am,
@@ -229,7 +232,7 @@ library LOBHeap {
         ArrayMetadata memory am,
         MapMetadata memory mm,
         uint256 index
-    ) internal {
+    ) internal returns (LOBOrder memory) {
         require(index < am.length, "Index out of bounds");
         uint256 lastIndex = am.length - 1;
 
@@ -237,6 +240,10 @@ library LOBHeap {
         // TODO - think more about this, should it be at end
         am.length -= 1;
         arrSetMetadata(am);
+
+        // Get the item we're deleting to return it
+        bytes memory ordBytes = arrGet(am, lastIndex);
+        LOBOrder memory deletedItem = abi.decode(ordBytes, (LOBOrder));
 
         // TODO - Are we deleting the map value here?
         // mapWrite(mm, ordBytesDel.clientId, abi.encode(index));
@@ -264,7 +271,7 @@ library LOBHeap {
         //     heap.pop();
         // }
 
-        // return deletedValue;
+        return deletedItem;
     }
 
     /**
