@@ -30,13 +30,7 @@ $ forge build
 
 ### Test
 
-In a background window run Suave:
-
-```shell
-$ suave --suave.dev
-```
-
-Then use the ffi flag with Forge.
+Use the ffi flag with Forge.
 
 ```shell
 $ forge test --ffi
