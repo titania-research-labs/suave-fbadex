@@ -36,6 +36,9 @@ library LOBHeap {
         MapMetadata memory mm,
         LOBOrder memory ord
     ) internal {
+        // If side is 'true' it's bid side, and we have a max heap, otherwise asks and min heap
+        bool maxHeap = ord.side;
+
         bytes memory val = abi.encode(ord);
 
         // Append AND set index
@@ -46,28 +49,33 @@ library LOBHeap {
         bytes memory val2 = abi.encode(arrLen - 1);
         mapWrite(mm, ord.clientId, val2);
 
-        heapifyUp(am, mm, arrLen - 1);
+        heapifyUp(maxHeap, am, mm, arrLen - 1);
     }
 
     /**
      * @notice To delete we will find the index of the order and then overwrite at that index
      */
     function deleteOrder(
+        bool maxHeap,
         ArrayMetadata memory am,
         MapMetadata memory mm,
         string memory clientId
     ) internal returns (LOBOrder memory) {
         bytes memory indBytes = mapGet(mm, clientId);
         uint256 ind = abi.decode(indBytes, (uint256));
-        LOBOrder memory ord = deleteAtIndex(am, mm, ind);
+        LOBOrder memory ord = deleteAtIndex(maxHeap, am, mm, ind);
         return ord;
     }
 
     /**
      * @notice Same idea as delete but it will always be the element at index 0
      */
-    function popOrder(ArrayMetadata memory am, MapMetadata memory mm) internal {
-        deleteAtIndex(am, mm, 0);
+    function popOrder(
+        bool maxHeap,
+        ArrayMetadata memory am,
+        MapMetadata memory mm
+    ) internal {
+        deleteAtIndex(maxHeap, am, mm, 0);
     }
 
     /**
@@ -229,6 +237,7 @@ library LOBHeap {
      * @notice Deletes an element at a specified index and then maintains heap
      */
     function deleteAtIndex(
+        bool maxHeap,
         ArrayMetadata memory am,
         MapMetadata memory mm,
         uint256 index
@@ -236,8 +245,7 @@ library LOBHeap {
         require(index < am.length, "Index out of bounds");
         uint256 lastIndex = am.length - 1;
 
-        // TODO - remember we need to adjust array length somewhere too...
-        // TODO - think more about this, should it be at end
+        // TODO - should this be at the end?
         am.length -= 1;
         arrSetMetadata(am);
 
@@ -245,7 +253,7 @@ library LOBHeap {
         bytes memory ordBytesDel = arrGet(am, lastIndex);
         LOBOrder memory deletedItem = abi.decode(ordBytesDel, (LOBOrder));
 
-        // TODO - Are we deleting the map value here?
+        // TODO - Are we deleting the map value here?  Or is deletion implicit?
         // mapWrite(mm, ordBytesDel.clientId, abi.encode(index));
 
         if (index != lastIndex) {
@@ -261,9 +269,9 @@ library LOBHeap {
             LOBOrder memory ordComp = abi.decode(ordBytesComp, (LOBOrder));
 
             if (index == 0 || ord.price <= ordComp.price) {
-                heapifyDown(am, mm, index);
+                heapifyDown(maxHeap, am, mm, index);
             } else {
-                heapifyUp(am, mm, index);
+                heapifyUp(maxHeap, am, mm, index);
             }
         }
         // Think we do NOT need to pop?
@@ -278,6 +286,7 @@ library LOBHeap {
      * @notice Maintains heap invariant by moving elements up
      */
     function heapifyUp(
+        bool maxHeap,
         ArrayMetadata memory am,
         MapMetadata memory mm,
         uint256 index
@@ -292,10 +301,13 @@ library LOBHeap {
             LOBOrder memory ord = abi.decode(ordBytes, (LOBOrder));
             LOBOrder memory ordParent = abi.decode(ordParentBytes, (LOBOrder));
 
-            // TODO - needs to sort one way or the other depending on bids/asks
-            if (ord.price <= ordParent.price) {
+            // Sort one way or the other based on min/max heap
+            if (maxHeap && ord.price <= ordParent.price) {
+                break;
+            } else if (!maxHeap && ord.price >= ordParent.price) {
                 break;
             }
+
             // Flip values to maintain heap
             arrWrite(am, index, ordParentBytes);
             arrWrite(am, indexParent, ordBytes);
@@ -311,6 +323,7 @@ library LOBHeap {
      * @notice Maintains heap invariant by moving elements down
      */
     function heapifyDown(
+        bool maxHeap,
         ArrayMetadata memory am,
         MapMetadata memory mm,
         uint256 index
@@ -337,8 +350,13 @@ library LOBHeap {
                     ordChildBytes,
                     (LOBOrder)
                 );
-                // TODO - handle either way
-                if (ordChild.price > ordLargest.price) {
+
+                // Again sorting based on min/max heap
+                if (maxHeap && ordChild.price > ordLargest.price) {
+                    ordLargestBytes = ordChildBytes;
+                    ordLargest = ordChild;
+                    largestInd = leftChildInd;
+                } else if (!maxHeap && ordChild.price < ordLargest.price) {
                     ordLargestBytes = ordChildBytes;
                     ordLargest = ordChild;
                     largestInd = leftChildInd;
@@ -351,7 +369,11 @@ library LOBHeap {
                     ordChildBytes,
                     (LOBOrder)
                 );
-                if (ordChild.price > ordLargest.price) {
+                if (maxHeap && ordChild.price > ordLargest.price) {
+                    ordLargestBytes = ordChildBytes;
+                    ordLargest = ordChild;
+                    largestInd = rightChildInd;
+                } else if (!maxHeap && ordChild.price > ordLargest.price) {
                     ordLargestBytes = ordChildBytes;
                     ordLargest = ordChild;
                     largestInd = rightChildInd;

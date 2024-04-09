@@ -157,6 +157,9 @@ contract LOB {
         );
         LOBHeap.MapMetadata memory askMm = LOBHeap.mapGetMetadata(askMapRef);
 
+        bool maxHeapBids = true;
+        bool maxHeapAsks = false;
+
         // Add it to bids or asks heap...
         if (ord.side == ISBUY) {
             LOBHeap.insertOrder(bidAm, bidMm, ord);
@@ -191,7 +194,7 @@ contract LOB {
                 // If there's a fill it can only be with this order that
                 // just came in, so use OPPOSITE price..
                 // And append a fill to our fills list...
-                LOBHeap.popOrder(bidAm, bidMm);
+                LOBHeap.popOrder(maxHeapBids, bidAm, bidMm);
                 // Need to overwrite the ask size
                 bestAsk.amount = bestAsk.amount - fillAmount;
                 LOBHeap.updateOrder(askAm, bestAsk, 0);
@@ -199,15 +202,15 @@ contract LOB {
                 bestBid = LOBHeap.peek(bidAm, bidFallbackPrice, ISBUY);
             } else if (bestAsk.amount < bestBid.amount) {
                 fillAmount = bestAsk.amount;
-                LOBHeap.popOrder(askAm, askMm);
+                LOBHeap.popOrder(maxHeapAsks, askAm, askMm);
                 // Need to overwrite the ask size
                 bestBid.amount = bestBid.amount - fillAmount;
                 LOBHeap.updateOrder(bidAm, bestBid, 0);
                 bestAsk = LOBHeap.peek(askAm, askFallbackPrice, ISSELL);
             } else {
                 fillAmount = bestAsk.amount;
-                LOBHeap.popOrder(bidAm, bidMm);
-                LOBHeap.popOrder(askAm, askMm);
+                LOBHeap.popOrder(maxHeapBids, bidAm, bidMm);
+                LOBHeap.popOrder(maxHeapAsks, askAm, askMm);
                 bestBid = LOBHeap.peek(bidAm, bidFallbackPrice, ISBUY);
                 bestAsk = LOBHeap.peek(askAm, askFallbackPrice, ISSELL);
             }
@@ -230,22 +233,25 @@ contract LOB {
         bool side
     ) external returns (bytes memory) {
         LOBHeap.LOBOrder memory ord;
+
         if (side == ISBUY) {
+            bool maxHeapBids = true;
             LOBHeap.ArrayMetadata memory bidAm = LOBHeap.arrGetMetadata(
                 bidArrayRef
             );
             LOBHeap.MapMetadata memory bidMm = LOBHeap.mapGetMetadata(
                 bidMapRef
             );
-            ord = LOBHeap.deleteOrder(bidAm, bidMm, clientId);
+            ord = LOBHeap.deleteOrder(maxHeapBids, bidAm, bidMm, clientId);
         } else if (side == ISSELL) {
+            bool maxHeapAsks = false;
             LOBHeap.ArrayMetadata memory askAm = LOBHeap.arrGetMetadata(
                 askArrayRef
             );
             LOBHeap.MapMetadata memory askMm = LOBHeap.mapGetMetadata(
                 askMapRef
             );
-            ord = LOBHeap.deleteOrder(askAm, askMm, clientId);
+            ord = LOBHeap.deleteOrder(maxHeapAsks, askAm, askMm, clientId);
         }
 
         CancelResult memory orderResult = CancelResult(
