@@ -5,12 +5,12 @@ import "forge-std/Test.sol";
 import "suave-std/Test.sol";
 import "suave-std/suavelib/Suave.sol";
 import "forge-std/console.sol";
-import {LOBHeap} from "../src/LOBHeap.sol";
+import {FBAHeap} from "../src/FBAHeap.sol";
 
 contract TestForge is Test, SuaveEnabled {
     function deployHeap()
         internal
-        returns (LOBHeap.ArrayMetadata memory am, LOBHeap.MapMetadata memory mm)
+        returns (FBAHeap.ArrayMetadata memory am, FBAHeap.MapMetadata memory mm)
     {
         // Initializing library
         // No contract, just test library functionality
@@ -22,33 +22,33 @@ contract TestForge is Test, SuaveEnabled {
             0,
             addressList,
             addressList,
-            "suaveLOB:v0:dataId"
+            "suaveFBA:v0:dataId"
         );
-        am = LOBHeap.ArrayMetadata(0, record1.id);
-        LOBHeap.arrSetMetadata(am);
+        am = FBAHeap.ArrayMetadata(0, record1.id);
+        FBAHeap.arrSetMetadata(am);
         // For the map
         Suave.DataRecord memory record2 = Suave.newDataRecord(
             0,
             addressList,
             addressList,
-            "suaveLOB:v0:dataId"
+            "suaveFBA:v0:dataId"
         );
-        mm = LOBHeap.MapMetadata(record2.id);
-        LOBHeap.mapSetMetadata(mm);
+        mm = FBAHeap.MapMetadata(record2.id);
+        FBAHeap.mapSetMetadata(mm);
     }
 
     function testInsertOrder() public {
         (
-            LOBHeap.ArrayMetadata memory am,
-            LOBHeap.MapMetadata memory mm
+            FBAHeap.ArrayMetadata memory am,
+            FBAHeap.MapMetadata memory mm
         ) = deployHeap();
-        LOBHeap.LOBOrder memory ord = LOBHeap.LOBOrder(100, false, 123, "abcd");
+        FBAHeap.FBAOrder memory ord = FBAHeap.FBAOrder(100, false, 123, "abcd");
 
-        LOBHeap.insertOrder(am, mm, ord);
+        FBAHeap.insertOrder(am, mm, ord);
 
         uint bidFallbackPrice = 0;
 
-        LOBHeap.LOBOrder memory ord2 = LOBHeap.peek(
+        FBAHeap.FBAOrder memory ord2 = FBAHeap.peek(
             am,
             bidFallbackPrice,
             false
@@ -59,20 +59,20 @@ contract TestForge is Test, SuaveEnabled {
 
     function testDeleteOrder() public {
         (
-            LOBHeap.ArrayMetadata memory am,
-            LOBHeap.MapMetadata memory mm
+            FBAHeap.ArrayMetadata memory am,
+            FBAHeap.MapMetadata memory mm
         ) = deployHeap();
 
-        LOBHeap.LOBOrder memory ord = LOBHeap.LOBOrder(100, true, 123, "abcd");
-        LOBHeap.LOBOrder memory ord2 = LOBHeap.LOBOrder(101, true, 456, "efgh");
+        FBAHeap.FBAOrder memory ord = FBAHeap.FBAOrder(100, true, 123, "abcd");
+        FBAHeap.FBAOrder memory ord2 = FBAHeap.FBAOrder(101, true, 456, "efgh");
 
         bool maxHeap = true;
-        LOBHeap.insertOrder(am, mm, ord);
-        LOBHeap.insertOrder(am, mm, ord2);
-        LOBHeap.deleteOrder(maxHeap, am, mm, ord.clientId);
+        FBAHeap.insertOrder(am, mm, ord);
+        FBAHeap.insertOrder(am, mm, ord2);
+        FBAHeap.deleteOrder(maxHeap, am, mm, ord.clientId);
 
         uint askFallbackPrice = type(uint).max;
-        LOBHeap.LOBOrder memory ord3 = LOBHeap.peek(am, askFallbackPrice, true);
+        FBAHeap.FBAOrder memory ord3 = FBAHeap.peek(am, askFallbackPrice, true);
         console.log(ord3.amount, ord3.price, ord3.clientId);
     }
 
@@ -80,23 +80,23 @@ contract TestForge is Test, SuaveEnabled {
         // Want to make sure that when we insert bids vs asks we're sorting properly
         // (bids should be a max heap, asks a min heap)
         (
-            LOBHeap.ArrayMetadata memory am,
-            LOBHeap.MapMetadata memory mm
+            FBAHeap.ArrayMetadata memory am,
+            FBAHeap.MapMetadata memory mm
         ) = deployHeap();
         // This is just the 0/1 flag indicating that these are buy orders
         bool buy = true;
         // Insert three orders, make sure we see max at end
         // When we peek, we should see the 104 one...
-        LOBHeap.LOBOrder memory ord1 = LOBHeap.LOBOrder(99, buy, 123, "abcd");
-        LOBHeap.LOBOrder memory ord2 = LOBHeap.LOBOrder(104, buy, 123, "defg");
-        LOBHeap.LOBOrder memory ord3 = LOBHeap.LOBOrder(100, buy, 123, "hijk");
+        FBAHeap.FBAOrder memory ord1 = FBAHeap.FBAOrder(99, buy, 123, "abcd");
+        FBAHeap.FBAOrder memory ord2 = FBAHeap.FBAOrder(104, buy, 123, "defg");
+        FBAHeap.FBAOrder memory ord3 = FBAHeap.FBAOrder(100, buy, 123, "hijk");
 
-        LOBHeap.insertOrder(am, mm, ord1);
-        LOBHeap.insertOrder(am, mm, ord2);
-        LOBHeap.insertOrder(am, mm, ord3);
+        FBAHeap.insertOrder(am, mm, ord1);
+        FBAHeap.insertOrder(am, mm, ord2);
+        FBAHeap.insertOrder(am, mm, ord3);
 
         uint bidFallbackPrice = 0;
-        LOBHeap.LOBOrder memory ordTop = LOBHeap.peek(
+        FBAHeap.FBAOrder memory ordTop = FBAHeap.peek(
             am,
             bidFallbackPrice,
             true
@@ -108,22 +108,22 @@ contract TestForge is Test, SuaveEnabled {
 
     function testAsksSorting() public {
         (
-            LOBHeap.ArrayMetadata memory am,
-            LOBHeap.MapMetadata memory mm
+            FBAHeap.ArrayMetadata memory am,
+            FBAHeap.MapMetadata memory mm
         ) = deployHeap();
         // This is just the 0/1 flag indicating that these are sell orders
         bool sell = false;
         // Insert three orders, make sure we see min at end
         // When we peek, we should see the 95 one...
-        LOBHeap.LOBOrder memory ord1 = LOBHeap.LOBOrder(99, sell, 123, "abcd");
-        LOBHeap.LOBOrder memory ord2 = LOBHeap.LOBOrder(95, sell, 123, "defg");
-        LOBHeap.LOBOrder memory ord3 = LOBHeap.LOBOrder(100, sell, 123, "hijk");
-        LOBHeap.insertOrder(am, mm, ord1);
-        LOBHeap.insertOrder(am, mm, ord2);
-        LOBHeap.insertOrder(am, mm, ord3);
+        FBAHeap.FBAOrder memory ord1 = FBAHeap.FBAOrder(99, sell, 123, "abcd");
+        FBAHeap.FBAOrder memory ord2 = FBAHeap.FBAOrder(95, sell, 123, "defg");
+        FBAHeap.FBAOrder memory ord3 = FBAHeap.FBAOrder(100, sell, 123, "hijk");
+        FBAHeap.insertOrder(am, mm, ord1);
+        FBAHeap.insertOrder(am, mm, ord2);
+        FBAHeap.insertOrder(am, mm, ord3);
 
         uint bidFallbackPrice = 0;
-        LOBHeap.LOBOrder memory ordTop = LOBHeap.peek(
+        FBAHeap.FBAOrder memory ordTop = FBAHeap.peek(
             am,
             bidFallbackPrice,
             false

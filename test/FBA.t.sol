@@ -5,8 +5,8 @@ import "forge-std/Test.sol";
 import "suave-std/Test.sol";
 import "suave-std/suavelib/Suave.sol";
 import "forge-std/console.sol";
-import {LOB} from "../src/LOB.sol";
-import {LOBHeap} from "../src/LOBHeap.sol";
+import {FBA} from "../src/FBA.sol";
+import {FBAHeap} from "../src/FBAHeap.sol";
 
 contract TestForge is Test, SuaveEnabled {
     struct Fill {
@@ -20,75 +20,75 @@ contract TestForge is Test, SuaveEnabled {
     function testPlaceOrder() public {
         // Test should:
         // Confirm a buy order is successfully placed by looking for emitted event
-        LOB lob = new LOB();
-        bytes memory o1 = lob.initLOB();
-        address(lob).call(o1);
+        FBA fba = new FBA();
+        bytes memory o1 = fba.initFBA();
+        address(fba).call(o1);
 
         bool buy = true;
-        LOBHeap.LOBOrder memory ord = LOBHeap.LOBOrder(100, buy, 123, "abcd");
+        FBAHeap.FBAOrder memory ord = FBAHeap.FBAOrder(100, buy, 123, "abcd");
 
-        bytes memory o2 = lob.placeOrder(ord);
+        bytes memory o2 = fba.placeOrder(ord);
         vm.expectEmit(true, true, true, true);
         emit OrderPlace(ord.price, ord.side, ord.amount);
-        address(lob).call(o2);
+        address(fba).call(o2);
     }
 
     function testCancelOrder() public {
         // Test should:
         // Confirm a cancel order is successfully processed by looking for emitted event
-        LOB lob = new LOB();
-        bytes memory o1 = lob.initLOB();
-        address(lob).call(o1);
+        FBA fba = new FBA();
+        bytes memory o1 = fba.initFBA();
+        address(fba).call(o1);
 
         // Place logic - same as above but do a sell order
         bool sell = false;
         string memory clientId = "abcd";
 
-        LOBHeap.LOBOrder memory ord = LOBHeap.LOBOrder(
+        FBAHeap.FBAOrder memory ord = FBAHeap.FBAOrder(
             100,
             sell,
             123,
             clientId
         );
-        bytes memory o2 = lob.placeOrder(ord);
-        address(lob).call(o2);
+        bytes memory o2 = fba.placeOrder(ord);
+        address(fba).call(o2);
 
         // Now confirm cancel works
-        bytes memory o3 = lob.cancelOrder(clientId, sell);
+        bytes memory o3 = fba.cancelOrder(clientId, sell);
         vm.expectEmit(true, true, true, true);
         emit OrderCancel(ord.price, ord.side, ord.amount);
-        address(lob).call(o3);
+        address(fba).call(o3);
     }
 
     function testMatchOrder() public {
-        LOB lob = new LOB();
-        bytes memory o1 = lob.initLOB();
-        address(lob).call(o1);
+        FBA fba = new FBA();
+        bytes memory o1 = fba.initFBA();
+        address(fba).call(o1);
 
         bool buy = true;
         bool sell = false;
         uint tradePrice = 100;
-        LOBHeap.LOBOrder memory ordBuy = LOBHeap.LOBOrder(
+        FBAHeap.FBAOrder memory ordBuy = FBAHeap.FBAOrder(
             tradePrice,
             buy,
             100,
             "abcd"
         );
-        bytes memory o2 = lob.placeOrder(ordBuy);
-        address(lob).call(o2);
+        bytes memory o2 = fba.placeOrder(ordBuy);
+        address(fba).call(o2);
 
-        LOBHeap.LOBOrder memory ordSell = LOBHeap.LOBOrder(
+        FBAHeap.FBAOrder memory ordSell = FBAHeap.FBAOrder(
             tradePrice,
             sell,
             80,
             "defg"
         );
-        bytes memory o3 = lob.placeOrder(ordSell);
+        bytes memory o3 = fba.placeOrder(ordSell);
         // This should have resulted in a matching order of amount 80 at price 100
         Fill memory f = Fill(80, 100);
         vm.expectEmit(true, true, true, true);
         emit FillEvent(f);
-        address(lob).call(o3);
+        address(fba).call(o3);
 
         // TODO - should we confirm that there's still a sell order of 20 left?
     }

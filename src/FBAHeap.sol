@@ -7,11 +7,11 @@ import "forge-std/console.sol";
 
 // Library with a heap specifically built for a limit orderbook
 
-library LOBHeap {
+library FBAHeap {
     // TODO - switch bool side to be this enum
     // enum Side {BID, ASK}
     // Currently all orders are GTC limit orders
-    struct LOBOrder {
+    struct FBAOrder {
         uint256 price;
         // 'true' for bids and 'false' for asks
         bool side;
@@ -30,11 +30,11 @@ library LOBHeap {
         Suave.DataId ref;
     }
 
-    //////////// Helper functions specific to LOB
+    //////////// Helper functions specific to FBA
     function insertOrder(
         ArrayMetadata memory am,
         MapMetadata memory mm,
-        LOBOrder memory ord
+        FBAOrder memory ord
     ) internal {
         // If side is 'true' it's bid side, and we have a max heap, otherwise asks and min heap
         bool maxHeap = ord.side;
@@ -60,10 +60,10 @@ library LOBHeap {
         ArrayMetadata memory am,
         MapMetadata memory mm,
         string memory clientId
-    ) internal returns (LOBOrder memory) {
+    ) internal returns (FBAOrder memory) {
         bytes memory indBytes = mapGet(mm, clientId);
         uint256 ind = abi.decode(indBytes, (uint256));
-        LOBOrder memory ord = deleteAtIndex(maxHeap, am, mm, ind);
+        FBAOrder memory ord = deleteAtIndex(maxHeap, am, mm, ind);
         return ord;
     }
 
@@ -85,14 +85,14 @@ library LOBHeap {
         ArrayMetadata memory am,
         uint fallbackPrice,
         bool fallbackSide
-    ) internal returns (LOBOrder memory) {
+    ) internal returns (FBAOrder memory) {
         // So if heap is empty create a new struct with the fallback values
         if (am.length == 0) {
-            return LOBOrder(fallbackPrice, fallbackSide, 0, "");
+            return FBAOrder(fallbackPrice, fallbackSide, 0, "");
         }
 
         bytes memory ordBytes = arrGet(am, 0);
-        LOBOrder memory ord = abi.decode(ordBytes, (LOBOrder));
+        FBAOrder memory ord = abi.decode(ordBytes, (FBAOrder));
         return ord;
     }
 
@@ -101,7 +101,7 @@ library LOBHeap {
      */
     function updateOrder(
         ArrayMetadata memory am,
-        LOBOrder memory ord,
+        FBAOrder memory ord,
         uint index
     ) internal {
         // Index will remain the same so we don't need to update our map here
@@ -241,7 +241,7 @@ library LOBHeap {
         ArrayMetadata memory am,
         MapMetadata memory mm,
         uint256 index
-    ) internal returns (LOBOrder memory) {
+    ) internal returns (FBAOrder memory) {
         require(index < am.length, "Index out of bounds");
         uint256 lastIndex = am.length - 1;
 
@@ -251,7 +251,7 @@ library LOBHeap {
 
         // Get the item we're deleting to return it
         bytes memory ordBytesDel = arrGet(am, lastIndex);
-        LOBOrder memory deletedItem = abi.decode(ordBytesDel, (LOBOrder));
+        FBAOrder memory deletedItem = abi.decode(ordBytesDel, (FBAOrder));
 
         // TODO - Are we deleting the map value here?  Or is deletion implicit?
         // mapWrite(mm, ordBytesDel.clientId, abi.encode(index));
@@ -259,14 +259,14 @@ library LOBHeap {
         if (index != lastIndex) {
             // Copy final value to current index...
             bytes memory ordBytes = arrGet(am, lastIndex);
-            LOBOrder memory ord = abi.decode(ordBytes, (LOBOrder));
+            FBAOrder memory ord = abi.decode(ordBytes, (FBAOrder));
             arrWrite(am, index, ordBytes);
             mapWrite(mm, ord.clientId, abi.encode(index));
 
             // Need to see if we need to heapify up/down
             uint256 indexCompare = (index - 1) / 2;
             bytes memory ordBytesComp = arrGet(am, indexCompare);
-            LOBOrder memory ordComp = abi.decode(ordBytesComp, (LOBOrder));
+            FBAOrder memory ordComp = abi.decode(ordBytesComp, (FBAOrder));
 
             if (index == 0 || ord.price <= ordComp.price) {
                 heapifyDown(maxHeap, am, mm, index);
@@ -298,8 +298,8 @@ library LOBHeap {
             bytes memory ordBytes = arrGet(am, index);
             bytes memory ordParentBytes = arrGet(am, indexParent);
             // need to decode values
-            LOBOrder memory ord = abi.decode(ordBytes, (LOBOrder));
-            LOBOrder memory ordParent = abi.decode(ordParentBytes, (LOBOrder));
+            FBAOrder memory ord = abi.decode(ordBytes, (FBAOrder));
+            FBAOrder memory ordParent = abi.decode(ordParentBytes, (FBAOrder));
 
             // Sort one way or the other based on min/max heap
             if (maxHeap && ord.price <= ordParent.price) {
@@ -334,9 +334,9 @@ library LOBHeap {
         uint256 lastInd = am.length - 1;
 
         bytes memory ordBytes = arrGet(am, index);
-        LOBOrder memory ord = abi.decode(ordBytes, (LOBOrder));
+        FBAOrder memory ord = abi.decode(ordBytes, (FBAOrder));
 
-        LOBOrder memory ordLargest = ord;
+        FBAOrder memory ordLargest = ord;
         bytes memory ordLargestBytes = ordBytes;
 
         while (true) {
@@ -346,9 +346,9 @@ library LOBHeap {
 
             if (leftChildInd <= lastInd) {
                 bytes memory ordChildBytes = arrGet(am, leftChildInd);
-                LOBOrder memory ordChild = abi.decode(
+                FBAOrder memory ordChild = abi.decode(
                     ordChildBytes,
-                    (LOBOrder)
+                    (FBAOrder)
                 );
 
                 // Again sorting based on min/max heap
@@ -365,9 +365,9 @@ library LOBHeap {
 
             if (rightChildInd <= lastInd) {
                 bytes memory ordChildBytes = arrGet(am, rightChildInd);
-                LOBOrder memory ordChild = abi.decode(
+                FBAOrder memory ordChild = abi.decode(
                     ordChildBytes,
-                    (LOBOrder)
+                    (FBAOrder)
                 );
                 if (maxHeap && ordChild.price > ordLargest.price) {
                     ordLargestBytes = ordChildBytes;

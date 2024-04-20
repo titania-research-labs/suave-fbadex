@@ -4,9 +4,9 @@ pragma solidity ^0.8.13;
 import "suave-std/suavelib/Suave.sol";
 import "forge-std/console.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import {LOBHeap} from "../src/LOBHeap.sol";
+import {FBAHeap} from "../src/FBAHeap.sol";
 
-contract LOB {
+contract FBA {
     bool ISBUY = true;
     bool ISSELL = false;
 
@@ -46,54 +46,54 @@ contract LOB {
         addressList[0] = 0xC8df3686b4Afb2BB53e60EAe97EF043FE03Fb829;
     }
 
-    function initLOB() external returns (bytes memory) {
+    function initFBA() external returns (bytes memory) {
         // For the array
         Suave.DataRecord memory bidArr = Suave.newDataRecord(
             0,
             addressList,
             addressList,
-            "suaveLOB:v0:dataId"
+            "suaveFBA:v0:dataId"
         );
-        LOBHeap.ArrayMetadata memory bidAm = LOBHeap.ArrayMetadata(
+        FBAHeap.ArrayMetadata memory bidAm = FBAHeap.ArrayMetadata(
             0,
             bidArr.id
         );
-        LOBHeap.arrSetMetadata(bidAm);
+        FBAHeap.arrSetMetadata(bidAm);
 
         Suave.DataRecord memory askArr = Suave.newDataRecord(
             0,
             addressList,
             addressList,
-            "suaveLOB:v0:dataId"
+            "suaveFBA:v0:dataId"
         );
-        LOBHeap.ArrayMetadata memory askAm = LOBHeap.ArrayMetadata(
+        FBAHeap.ArrayMetadata memory askAm = FBAHeap.ArrayMetadata(
             0,
             askArr.id
         );
-        LOBHeap.arrSetMetadata(askAm);
+        FBAHeap.arrSetMetadata(askAm);
 
         // For the map
         Suave.DataRecord memory bidMap = Suave.newDataRecord(
             0,
             addressList,
             addressList,
-            "suaveLOB:v0:dataId"
+            "suaveFBA:v0:dataId"
         );
-        LOBHeap.MapMetadata memory bidMm = LOBHeap.MapMetadata(bidMap.id);
-        LOBHeap.mapSetMetadata(bidMm);
+        FBAHeap.MapMetadata memory bidMm = FBAHeap.MapMetadata(bidMap.id);
+        FBAHeap.mapSetMetadata(bidMm);
 
         Suave.DataRecord memory askMap = Suave.newDataRecord(
             0,
             addressList,
             addressList,
-            "suaveLOB:v0:dataId"
+            "suaveFBA:v0:dataId"
         );
-        LOBHeap.MapMetadata memory askMm = LOBHeap.MapMetadata(askMap.id);
-        LOBHeap.mapSetMetadata(askMm);
+        FBAHeap.MapMetadata memory askMm = FBAHeap.MapMetadata(askMap.id);
+        FBAHeap.mapSetMetadata(askMm);
 
         return
             abi.encodeWithSelector(
-                this.initLOBCallback.selector,
+                this.initFBACallback.selector,
                 bidArr.id,
                 askArr.id,
                 bidMap.id,
@@ -130,7 +130,7 @@ contract LOB {
         );
     }
 
-    function initLOBCallback(
+    function initFBACallback(
         Suave.DataId _bidArrayRef,
         Suave.DataId _askArrayRef,
         Suave.DataId _bidMapRef,
@@ -146,35 +146,35 @@ contract LOB {
      * @notice Allows user to place a new order and immediately checks for fills
      */
     function placeOrder(
-        LOBHeap.LOBOrder memory ord
+        FBAHeap.FBAOrder memory ord
     ) external returns (bytes memory) {
-        LOBHeap.ArrayMetadata memory bidAm = LOBHeap.arrGetMetadata(
+        FBAHeap.ArrayMetadata memory bidAm = FBAHeap.arrGetMetadata(
             bidArrayRef
         );
-        LOBHeap.MapMetadata memory bidMm = LOBHeap.mapGetMetadata(bidMapRef);
-        LOBHeap.ArrayMetadata memory askAm = LOBHeap.arrGetMetadata(
+        FBAHeap.MapMetadata memory bidMm = FBAHeap.mapGetMetadata(bidMapRef);
+        FBAHeap.ArrayMetadata memory askAm = FBAHeap.arrGetMetadata(
             askArrayRef
         );
-        LOBHeap.MapMetadata memory askMm = LOBHeap.mapGetMetadata(askMapRef);
+        FBAHeap.MapMetadata memory askMm = FBAHeap.mapGetMetadata(askMapRef);
 
         bool maxHeapBids = true;
         bool maxHeapAsks = false;
 
         // Add it to bids or asks heap...
         if (ord.side == ISBUY) {
-            LOBHeap.insertOrder(bidAm, bidMm, ord);
+            FBAHeap.insertOrder(bidAm, bidMm, ord);
         } else if (ord.side == ISSELL) {
-            LOBHeap.insertOrder(askAm, askMm, ord);
+            FBAHeap.insertOrder(askAm, askMm, ord);
         }
 
         uint bidFallbackPrice = 0;
         uint askFallbackPrice = type(uint).max;
-        LOBHeap.LOBOrder memory bestBid = LOBHeap.peek(
+        FBAHeap.FBAOrder memory bestBid = FBAHeap.peek(
             bidAm,
             bidFallbackPrice,
             ISBUY
         );
-        LOBHeap.LOBOrder memory bestAsk = LOBHeap.peek(
+        FBAHeap.FBAOrder memory bestAsk = FBAHeap.peek(
             askAm,
             askFallbackPrice,
             ISSELL
@@ -194,25 +194,25 @@ contract LOB {
                 // If there's a fill it can only be with this order that
                 // just came in, so use OPPOSITE price..
                 // And append a fill to our fills list...
-                LOBHeap.popOrder(maxHeapBids, bidAm, bidMm);
+                FBAHeap.popOrder(maxHeapBids, bidAm, bidMm);
                 // Need to overwrite the ask size
                 bestAsk.amount = bestAsk.amount - fillAmount;
-                LOBHeap.updateOrder(askAm, bestAsk, 0);
+                FBAHeap.updateOrder(askAm, bestAsk, 0);
                 // And now get the next bid for the next iteration...
-                bestBid = LOBHeap.peek(bidAm, bidFallbackPrice, ISBUY);
+                bestBid = FBAHeap.peek(bidAm, bidFallbackPrice, ISBUY);
             } else if (bestAsk.amount < bestBid.amount) {
                 fillAmount = bestAsk.amount;
-                LOBHeap.popOrder(maxHeapAsks, askAm, askMm);
+                FBAHeap.popOrder(maxHeapAsks, askAm, askMm);
                 // Need to overwrite the ask size
                 bestBid.amount = bestBid.amount - fillAmount;
-                LOBHeap.updateOrder(bidAm, bestBid, 0);
-                bestAsk = LOBHeap.peek(askAm, askFallbackPrice, ISSELL);
+                FBAHeap.updateOrder(bidAm, bestBid, 0);
+                bestAsk = FBAHeap.peek(askAm, askFallbackPrice, ISSELL);
             } else {
                 fillAmount = bestAsk.amount;
-                LOBHeap.popOrder(maxHeapBids, bidAm, bidMm);
-                LOBHeap.popOrder(maxHeapAsks, askAm, askMm);
-                bestBid = LOBHeap.peek(bidAm, bidFallbackPrice, ISBUY);
-                bestAsk = LOBHeap.peek(askAm, askFallbackPrice, ISSELL);
+                FBAHeap.popOrder(maxHeapBids, bidAm, bidMm);
+                FBAHeap.popOrder(maxHeapAsks, askAm, askMm);
+                bestBid = FBAHeap.peek(bidAm, bidFallbackPrice, ISBUY);
+                bestAsk = FBAHeap.peek(askAm, askFallbackPrice, ISSELL);
             }
             // And append a fill to our fills list...
             Fill memory fill = Fill(fillAmount, fillPrice);
@@ -232,26 +232,26 @@ contract LOB {
         string memory clientId,
         bool side
     ) external returns (bytes memory) {
-        LOBHeap.LOBOrder memory ord;
+        FBAHeap.FBAOrder memory ord;
 
         if (side == ISBUY) {
             bool maxHeapBids = true;
-            LOBHeap.ArrayMetadata memory bidAm = LOBHeap.arrGetMetadata(
+            FBAHeap.ArrayMetadata memory bidAm = FBAHeap.arrGetMetadata(
                 bidArrayRef
             );
-            LOBHeap.MapMetadata memory bidMm = LOBHeap.mapGetMetadata(
+            FBAHeap.MapMetadata memory bidMm = FBAHeap.mapGetMetadata(
                 bidMapRef
             );
-            ord = LOBHeap.deleteOrder(maxHeapBids, bidAm, bidMm, clientId);
+            ord = FBAHeap.deleteOrder(maxHeapBids, bidAm, bidMm, clientId);
         } else if (side == ISSELL) {
             bool maxHeapAsks = false;
-            LOBHeap.ArrayMetadata memory askAm = LOBHeap.arrGetMetadata(
+            FBAHeap.ArrayMetadata memory askAm = FBAHeap.arrGetMetadata(
                 askArrayRef
             );
-            LOBHeap.MapMetadata memory askMm = LOBHeap.mapGetMetadata(
+            FBAHeap.MapMetadata memory askMm = FBAHeap.mapGetMetadata(
                 askMapRef
             );
-            ord = LOBHeap.deleteOrder(maxHeapAsks, askAm, askMm, clientId);
+            ord = FBAHeap.deleteOrder(maxHeapAsks, askAm, askMm, clientId);
         }
 
         CancelResult memory orderResult = CancelResult(
