@@ -9,6 +9,9 @@ import {FBA} from "../src/FBA.sol";
 import {FBAHeap} from "../src/FBAHeap.sol";
 
 contract TestForge is Test, SuaveEnabled {
+    bool ISBUY = true;
+    bool ISSELL = false;
+
     struct Fill {
         uint amount;
         uint price;
@@ -24,8 +27,7 @@ contract TestForge is Test, SuaveEnabled {
         bytes memory o1 = fba.initFBA();
         address(fba).call(o1);
 
-        bool buy = true;
-        FBAHeap.FBAOrder memory ord = FBAHeap.FBAOrder(100, buy, 123, "abcd");
+        FBAHeap.FBAOrder memory ord = FBAHeap.FBAOrder(100, ISBUY, 123, "abcd");
 
         bytes memory o2 = fba.placeOrder(ord);
         vm.expectEmit(true, true, true, true);
@@ -41,12 +43,11 @@ contract TestForge is Test, SuaveEnabled {
         address(fba).call(o1);
 
         // Place logic - same as above but do a sell order
-        bool sell = false;
         string memory clientId = "abcd";
 
         FBAHeap.FBAOrder memory ord = FBAHeap.FBAOrder(
             100,
-            sell,
+            ISSELL,
             123,
             clientId
         );
@@ -54,7 +55,7 @@ contract TestForge is Test, SuaveEnabled {
         address(fba).call(o2);
 
         // Now confirm cancel works
-        bytes memory o3 = fba.cancelOrder(clientId, sell);
+        bytes memory o3 = fba.cancelOrder(clientId, ISSELL);
         vm.expectEmit(true, true, true, true);
         emit OrderCancel(ord.price, ord.side, ord.amount);
         address(fba).call(o3);
@@ -65,12 +66,10 @@ contract TestForge is Test, SuaveEnabled {
         bytes memory o1 = fba.initFBA();
         address(fba).call(o1);
 
-        bool buy = true;
-        bool sell = false;
         uint tradePrice = 100;
         FBAHeap.FBAOrder memory ordBuy = FBAHeap.FBAOrder(
             tradePrice,
-            buy,
+            ISBUY,
             100,
             "abcd"
         );
@@ -79,7 +78,7 @@ contract TestForge is Test, SuaveEnabled {
 
         FBAHeap.FBAOrder memory ordSell = FBAHeap.FBAOrder(
             tradePrice,
-            sell,
+            ISSELL,
             80,
             "defg"
         );

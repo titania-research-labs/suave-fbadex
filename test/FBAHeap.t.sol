@@ -8,6 +8,9 @@ import "forge-std/console.sol";
 import {FBAHeap} from "../src/FBAHeap.sol";
 
 contract TestForge is Test, SuaveEnabled {
+    bool ISBUY = true;
+    bool ISSELL = false;
+
     function deployHeap()
         internal
         returns (FBAHeap.ArrayMetadata memory am, FBAHeap.MapMetadata memory mm)
@@ -84,12 +87,11 @@ contract TestForge is Test, SuaveEnabled {
             FBAHeap.MapMetadata memory mm
         ) = deployHeap();
         // This is just the 0/1 flag indicating that these are buy orders
-        bool buy = true;
         // Insert three orders, make sure we see max at end
         // When we peek, we should see the 104 one...
-        FBAHeap.FBAOrder memory ord1 = FBAHeap.FBAOrder(99, buy, 123, "abcd");
-        FBAHeap.FBAOrder memory ord2 = FBAHeap.FBAOrder(104, buy, 123, "defg");
-        FBAHeap.FBAOrder memory ord3 = FBAHeap.FBAOrder(100, buy, 123, "hijk");
+        FBAHeap.FBAOrder memory ord1 = FBAHeap.FBAOrder(99, ISBUY, 123, "abcd");
+        FBAHeap.FBAOrder memory ord2 = FBAHeap.FBAOrder(104, ISBUY, 123, "defg");
+        FBAHeap.FBAOrder memory ord3 = FBAHeap.FBAOrder(100, ISBUY, 123, "hijk");
 
         FBAHeap.insertOrder(am, mm, ord1);
         FBAHeap.insertOrder(am, mm, ord2);
@@ -112,12 +114,11 @@ contract TestForge is Test, SuaveEnabled {
             FBAHeap.MapMetadata memory mm
         ) = deployHeap();
         // This is just the 0/1 flag indicating that these are sell orders
-        bool sell = false;
         // Insert three orders, make sure we see min at end
         // When we peek, we should see the 95 one...
-        FBAHeap.FBAOrder memory ord1 = FBAHeap.FBAOrder(99, sell, 123, "abcd");
-        FBAHeap.FBAOrder memory ord2 = FBAHeap.FBAOrder(95, sell, 123, "defg");
-        FBAHeap.FBAOrder memory ord3 = FBAHeap.FBAOrder(100, sell, 123, "hijk");
+        FBAHeap.FBAOrder memory ord1 = FBAHeap.FBAOrder(99, ISSELL, 123, "abcd");
+        FBAHeap.FBAOrder memory ord2 = FBAHeap.FBAOrder(95, ISSELL, 123, "defg");
+        FBAHeap.FBAOrder memory ord3 = FBAHeap.FBAOrder(100, ISSELL, 123, "hijk");
         FBAHeap.insertOrder(am, mm, ord1);
         FBAHeap.insertOrder(am, mm, ord2);
         FBAHeap.insertOrder(am, mm, ord3);
