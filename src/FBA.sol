@@ -107,41 +107,6 @@ contract FBA {
             emit FillEvent(_fills[i]);
         }
     }
-
-    function placeOrderCallback(
-        PlaceResult memory orderResult,
-        Fill[] memory _fills
-    ) public payable {
-        emit OrderPlace(
-            orderResult.price,
-            orderResult.side,
-            orderResult.amount
-        );
-        displayFills(_fills);
-    }
-
-    function cancelOrderCallback(
-        CancelResult memory orderResult
-    ) public payable {
-        emit OrderCancel(
-            orderResult.price,
-            orderResult.side,
-            orderResult.amount
-        );
-    }
-
-    function initFBACallback(
-        Suave.DataId _bidArrayRef,
-        Suave.DataId _askArrayRef,
-        Suave.DataId _bidMapRef,
-        Suave.DataId _askMapRef
-    ) public payable {
-        askArrayRef = _askArrayRef;
-        askMapRef = _askMapRef;
-        bidArrayRef = _bidArrayRef;
-        bidMapRef = _bidMapRef;
-    }
-
     /**
      * @notice Allows user to place a new order and immediately checks for fills
      */
@@ -264,5 +229,39 @@ contract FBA {
                 this.cancelOrderCallback.selector,
                 orderResult
             );
+    }
+
+    function initFBACallback(
+        Suave.DataId _bidArrayRef,
+        Suave.DataId _askArrayRef,
+        Suave.DataId _bidMapRef,
+        Suave.DataId _askMapRef
+    ) public payable {
+        askArrayRef = _askArrayRef;
+        askMapRef = _askMapRef;
+        bidArrayRef = _bidArrayRef;
+        bidMapRef = _bidMapRef;
+    }
+
+    function placeOrderCallback(
+        PlaceResult memory orderResult,
+        Fill[] memory _fills
+    ) public payable {
+        emit OrderPlace(
+            orderResult.price,
+            orderResult.side,
+            orderResult.amount
+        );
+        displayFills(_fills);
+    }
+
+    function cancelOrderCallback(
+        CancelResult memory orderResult
+    ) public payable {
+        emit OrderCancel(
+            orderResult.price,
+            orderResult.side,
+            orderResult.amount
+        );
     }
 }
