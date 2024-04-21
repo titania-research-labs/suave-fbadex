@@ -231,6 +231,8 @@ contract FBA {
             );
     }
 
+    //////////// Callback methods
+
     function initFBACallback(
         Suave.DataId _bidArrayRef,
         Suave.DataId _askArrayRef,

@@ -10,6 +10,7 @@ import "forge-std/console.sol";
 library FBAHeap {
     // TODO - switch bool side to be this enum
     // enum Side {BID, ASK}
+
     // Currently all orders are GTC limit orders
     struct FBAOrder {
         uint256 price;
