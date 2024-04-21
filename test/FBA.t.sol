@@ -61,34 +61,34 @@ contract TestForge is Test, SuaveEnabled {
         address(fba).call(o3);
     }
 
-    function testMatchOrder() public {
-        FBA fba = new FBA();
-        bytes memory o1 = fba.initFBA();
-        address(fba).call(o1);
+    // function testMatchOrder() public {
+    //     FBA fba = new FBA();
+    //     bytes memory o1 = fba.initFBA();
+    //     address(fba).call(o1);
 
-        uint tradePrice = 100;
-        FBAHeap.FBAOrder memory ordBuy = FBAHeap.FBAOrder(
-            tradePrice,
-            ISBUY,
-            100,
-            "abcd"
-        );
-        bytes memory o2 = fba.placeOrder(ordBuy);
-        address(fba).call(o2);
+    //     uint tradePrice = 100;
+    //     FBAHeap.FBAOrder memory ordBuy = FBAHeap.FBAOrder(
+    //         tradePrice,
+    //         ISBUY,
+    //         100,
+    //         "abcd"
+    //     );
+    //     bytes memory o2 = fba.placeOrder(ordBuy);
+    //     address(fba).call(o2);
 
-        FBAHeap.FBAOrder memory ordSell = FBAHeap.FBAOrder(
-            tradePrice,
-            ISSELL,
-            80,
-            "defg"
-        );
-        bytes memory o3 = fba.placeOrder(ordSell);
-        // This should have resulted in a matching order of amount 80 at price 100
-        Fill memory f = Fill(80, 100);
-        vm.expectEmit(true, true, true, true);
-        emit FillEvent(f);
-        address(fba).call(o3);
+    //     FBAHeap.FBAOrder memory ordSell = FBAHeap.FBAOrder(
+    //         tradePrice,
+    //         ISSELL,
+    //         80,
+    //         "defg"
+    //     );
+    //     bytes memory o3 = fba.placeOrder(ordSell);
+    //     // This should have resulted in a matching order of amount 80 at price 100
+    //     Fill memory f = Fill(80, 100);
+    //     vm.expectEmit(true, true, true, true);
+    //     emit FillEvent(f);
+    //     address(fba).call(o3);
 
-        // TODO - should we confirm that there's still a sell order of 20 left?
-    }
+    //     // TODO - should we confirm that there's still a sell order of 20 left?
+    // }
 }

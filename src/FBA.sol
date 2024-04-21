@@ -107,6 +107,7 @@ contract FBA {
             emit FillEvent(_fills[i]);
         }
     }
+
     /**
      * @notice Allows user to place a new order and immediately checks for fills
      */
@@ -122,9 +123,6 @@ contract FBA {
         );
         FBAHeap.MapMetadata memory askMm = FBAHeap.mapGetMetadata(askMapRef);
 
-        bool maxHeapBids = true;
-        bool maxHeapAsks = false;
-
         // Add it to bids or asks heap...
         if (ord.side == ISBUY) {
             FBAHeap.insertOrder(bidAm, bidMm, ord);
@@ -132,62 +130,10 @@ contract FBA {
             FBAHeap.insertOrder(askAm, askMm, ord);
         }
 
-        uint bidFallbackPrice = 0;
-        uint askFallbackPrice = type(uint).max;
-        FBAHeap.FBAOrder memory bestBid = FBAHeap.peek(
-            bidAm,
-            bidFallbackPrice,
-            ISBUY
-        );
-        FBAHeap.FBAOrder memory bestAsk = FBAHeap.peek(
-            askAm,
-            askFallbackPrice,
-            ISSELL
-        );
-
-        while (bestBid.price >= bestAsk.price) {
-            uint fillAmount;
-            uint fillPrice;
-
-            if (ord.side == ISBUY) {
-                fillPrice = bestAsk.price;
-            } else {
-                fillPrice = bestBid.price;
-            }
-            if (bestBid.amount < bestAsk.amount) {
-                fillAmount = bestBid.amount;
-                // If there's a fill it can only be with this order that
-                // just came in, so use OPPOSITE price..
-                // And append a fill to our fills list...
-                FBAHeap.popOrder(maxHeapBids, bidAm, bidMm);
-                // Need to overwrite the ask size
-                bestAsk.amount = bestAsk.amount - fillAmount;
-                FBAHeap.updateOrder(askAm, bestAsk, 0);
-                // And now get the next bid for the next iteration...
-                bestBid = FBAHeap.peek(bidAm, bidFallbackPrice, ISBUY);
-            } else if (bestAsk.amount < bestBid.amount) {
-                fillAmount = bestAsk.amount;
-                FBAHeap.popOrder(maxHeapAsks, askAm, askMm);
-                // Need to overwrite the ask size
-                bestBid.amount = bestBid.amount - fillAmount;
-                FBAHeap.updateOrder(bidAm, bestBid, 0);
-                bestAsk = FBAHeap.peek(askAm, askFallbackPrice, ISSELL);
-            } else {
-                fillAmount = bestAsk.amount;
-                FBAHeap.popOrder(maxHeapBids, bidAm, bidMm);
-                FBAHeap.popOrder(maxHeapAsks, askAm, askMm);
-                bestBid = FBAHeap.peek(bidAm, bidFallbackPrice, ISBUY);
-                bestAsk = FBAHeap.peek(askAm, askFallbackPrice, ISSELL);
-            }
-            // And append a fill to our fills list...
-            Fill memory fill = Fill(fillAmount, fillPrice);
-            fills.push(fill);
-        }
-
         // Assuming order placement was always successful?
         PlaceResult memory pr = PlaceResult(ord.price, ord.side, ord.amount);
         return
-            abi.encodeWithSelector(this.placeOrderCallback.selector, pr, fills);
+            abi.encodeWithSelector(this.placeOrderCallback.selector, pr);
     }
 
     /**
@@ -231,6 +177,78 @@ contract FBA {
             );
     }
 
+    // function executeFills() external returns (bytes memory) {
+    //     FBAHeap.ArrayMetadata memory bidAm = FBAHeap.arrGetMetadata(
+    //         bidArrayRef
+    //     );
+    //     FBAHeap.MapMetadata memory bidMm = FBAHeap.mapGetMetadata(bidMapRef);
+    //     FBAHeap.ArrayMetadata memory askAm = FBAHeap.arrGetMetadata(
+    //         askArrayRef
+    //     );
+    //     FBAHeap.MapMetadata memory askMm = FBAHeap.mapGetMetadata(askMapRef);
+
+    //     bool maxHeapBids = true;
+    //     bool maxHeapAsks = false;
+
+    //     uint bidFallbackPrice = 0;
+    //     uint askFallbackPrice = type(uint).max;
+    //     FBAHeap.FBAOrder memory bestBid = FBAHeap.peek(
+    //         bidAm,
+    //         bidFallbackPrice,
+    //         ISBUY
+    //     );
+    //     FBAHeap.FBAOrder memory bestAsk = FBAHeap.peek(
+    //         askAm,
+    //         askFallbackPrice,
+    //         ISSELL
+    //     );
+
+    //     while (bestBid.price >= bestAsk.price) {
+    //         uint fillAmount;
+    //         uint fillPrice;
+
+    //         if (ord.side == ISBUY) {
+    //             fillPrice = bestAsk.price;
+    //         } else {
+    //             fillPrice = bestBid.price;
+    //         }
+    //         if (bestBid.amount < bestAsk.amount) {
+    //             fillAmount = bestBid.amount;
+    //             // If there's a fill it can only be with this order that
+    //             // just came in, so use OPPOSITE price..
+    //             // And append a fill to our fills list...
+    //             FBAHeap.popOrder(maxHeapBids, bidAm, bidMm);
+    //             // Need to overwrite the ask size
+    //             bestAsk.amount = bestAsk.amount - fillAmount;
+    //             FBAHeap.updateOrder(askAm, bestAsk, 0);
+    //             // And now get the next bid for the next iteration...
+    //             bestBid = FBAHeap.peek(bidAm, bidFallbackPrice, ISBUY);
+    //         } else if (bestAsk.amount < bestBid.amount) {
+    //             fillAmount = bestAsk.amount;
+    //             FBAHeap.popOrder(maxHeapAsks, askAm, askMm);
+    //             // Need to overwrite the ask size
+    //             bestBid.amount = bestBid.amount - fillAmount;
+    //             FBAHeap.updateOrder(bidAm, bestBid, 0);
+    //             bestAsk = FBAHeap.peek(askAm, askFallbackPrice, ISSELL);
+    //         } else {
+    //             fillAmount = bestAsk.amount;
+    //             FBAHeap.popOrder(maxHeapBids, bidAm, bidMm);
+    //             FBAHeap.popOrder(maxHeapAsks, askAm, askMm);
+    //             bestBid = FBAHeap.peek(bidAm, bidFallbackPrice, ISBUY);
+    //             bestAsk = FBAHeap.peek(askAm, askFallbackPrice, ISSELL);
+    //         }
+    //         // And append a fill to our fills list...
+    //         Fill memory fill = Fill(fillAmount, fillPrice);
+    //         fills.push(fill);
+    //     }
+    // }
+
+    // function executeFillsCallback(
+    //     Fill[] memory _fills
+    // ) public payable {
+    //     displayFills(_fills);
+    // }
+
     //////////// Callback methods
 
     function initFBACallback(
@@ -246,15 +264,13 @@ contract FBA {
     }
 
     function placeOrderCallback(
-        PlaceResult memory orderResult,
-        Fill[] memory _fills
+        PlaceResult memory orderResult
     ) public payable {
         emit OrderPlace(
             orderResult.price,
             orderResult.side,
             orderResult.amount
         );
-        displayFills(_fills);
     }
 
     function cancelOrderCallback(
