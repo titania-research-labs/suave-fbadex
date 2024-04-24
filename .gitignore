@@ -15,3 +15,6 @@ docs/
 
 # Nethereum
 nethereum-gen.settings
+
+# VSCode
+.vscode/
