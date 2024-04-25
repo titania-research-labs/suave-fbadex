@@ -37,7 +37,7 @@ contract TestForge is Test, SuaveEnabled {
         FBAHeap.mapSetMetadata(mm);
     }
 
-    function getExtPrice(bool side) internal returns (uint extPrice) {
+    function getExtPrice(bool side) pure internal returns (uint extPrice) {
         if (side == true) { // bid side
             extPrice = 0;
         } else { // ask side
@@ -55,14 +55,12 @@ contract TestForge is Test, SuaveEnabled {
         FBAHeap.FBAOrder memory insertedOrd = FBAHeap.FBAOrder(100, side, 123, "abcd");
         FBAHeap.insertOrder(am, mm, insertedOrd);
 
-        FBAHeap.FBAOrder memory peekedOrd = FBAHeap.peek(
+        FBAHeap.FBAOrder memory peekedOrd = FBAHeap.peekTopOne(
             am,
             getExtPrice(side),
             side
         );
 
-        console.log(insertedOrd.amount, insertedOrd.price, insertedOrd.clientId);
-        console.log(peekedOrd.amount, peekedOrd.price, peekedOrd.clientId);
         assertEq(insertedOrd.amount, peekedOrd.amount);
         assertEq(insertedOrd.price, peekedOrd.price);
         assertEq(insertedOrd.clientId, peekedOrd.clientId);
@@ -82,9 +80,8 @@ contract TestForge is Test, SuaveEnabled {
         FBAHeap.insertOrder(am, mm, insertedOrd2);
         FBAHeap.deleteOrder(side, am, mm, insertedOrd1.clientId);
 
-        FBAHeap.FBAOrder memory peekedOrd = FBAHeap.peek(am, getExtPrice(side), side);
+        FBAHeap.FBAOrder memory peekedOrd = FBAHeap.peekTopOne(am, getExtPrice(side), side);
 
-        console.log(peekedOrd.amount, peekedOrd.price, peekedOrd.clientId);
         assertEq(insertedOrd2.amount, peekedOrd.amount);
         assertEq(insertedOrd2.price, peekedOrd.price);
         assertEq(insertedOrd2.clientId, peekedOrd.clientId);
@@ -102,23 +99,26 @@ contract TestForge is Test, SuaveEnabled {
         // When we peek, we should see the 104 one...
         FBAHeap.FBAOrder memory insertedOrd1 = FBAHeap.FBAOrder(99, side, 123, "abcd");
         FBAHeap.FBAOrder memory insertedOrd2 = FBAHeap.FBAOrder(104, side, 123, "defg");
-        FBAHeap.FBAOrder memory insertedOrd3 = FBAHeap.FBAOrder(100, side, 123, "hijk");
+        FBAHeap.FBAOrder memory insertedOrd3 = FBAHeap.FBAOrder(102, side, 123, "hijk");
 
         FBAHeap.insertOrder(am, mm, insertedOrd1);
         FBAHeap.insertOrder(am, mm, insertedOrd2);
         FBAHeap.insertOrder(am, mm, insertedOrd3);
 
-        FBAHeap.FBAOrder memory peekedOrd = FBAHeap.peek(
+        FBAHeap.FBAOrder[] memory peekedOrds = FBAHeap.peekTopList(
             am,
-            getExtPrice(side),
-            side
+            100,
+            side,
+            getExtPrice(side)
         );
 
-        console.log(peekedOrd.amount, peekedOrd.price, peekedOrd.clientId);
-        console.log(insertedOrd2.amount, insertedOrd2.price, insertedOrd2.clientId);
-        assertEq(insertedOrd2.amount, peekedOrd.amount);
-        assertEq(insertedOrd2.price, peekedOrd.price);
-        assertEq(insertedOrd2.clientId, peekedOrd.clientId);
+        assertEq(peekedOrds.length, 2);
+        assertEq(insertedOrd2.amount, peekedOrds[0].amount);
+        assertEq(insertedOrd2.price, peekedOrds[0].price);
+        assertEq(insertedOrd2.clientId, peekedOrds[0].clientId);
+        assertEq(insertedOrd3.amount, peekedOrds[1].amount);
+        assertEq(insertedOrd3.price, peekedOrds[1].price);
+        assertEq(insertedOrd3.clientId, peekedOrds[1].clientId);
     }
 
     function testAsksSorting() public {
@@ -130,23 +130,26 @@ contract TestForge is Test, SuaveEnabled {
         // This is just the 0/1 flag indicating that these are sell orders
         // Insert three orders, make sure we see min at end
         // When we peek, we should see the 95 one...
-        FBAHeap.FBAOrder memory insertedOrd1 = FBAHeap.FBAOrder(99, side, 123, "abcd");
+        FBAHeap.FBAOrder memory insertedOrd1 = FBAHeap.FBAOrder(97, side, 123, "abcd");
         FBAHeap.FBAOrder memory insertedOrd2 = FBAHeap.FBAOrder(95, side, 123, "defg");
         FBAHeap.FBAOrder memory insertedOrd3 = FBAHeap.FBAOrder(100, side, 123, "hijk");
         FBAHeap.insertOrder(am, mm, insertedOrd1);
         FBAHeap.insertOrder(am, mm, insertedOrd2);
         FBAHeap.insertOrder(am, mm, insertedOrd3);
 
-        FBAHeap.FBAOrder memory peekedOrd = FBAHeap.peek(
+        FBAHeap.FBAOrder[] memory peekedOrds = FBAHeap.peekTopList(
             am,
-            getExtPrice(side),
-            side
+            99,
+            side,
+            getExtPrice(side)
         );
 
-        console.log(peekedOrd.amount, peekedOrd.price, peekedOrd.clientId);
-        console.log(insertedOrd2.amount, insertedOrd2.price, insertedOrd2.clientId);
-        assertEq(insertedOrd2.amount, peekedOrd.amount);
-        assertEq(insertedOrd2.price, peekedOrd.price);
-        assertEq(insertedOrd2.clientId, peekedOrd.clientId);
+        assertEq(peekedOrds.length, 2);
+        assertEq(insertedOrd2.amount, peekedOrds[0].amount);
+        assertEq(insertedOrd2.price, peekedOrds[0].price);
+        assertEq(insertedOrd2.clientId, peekedOrds[0].clientId);
+        assertEq(insertedOrd1.amount, peekedOrds[1].amount);
+        assertEq(insertedOrd1.price, peekedOrds[1].price);
+        assertEq(insertedOrd1.clientId, peekedOrds[1].clientId);
     }
 }

@@ -192,12 +192,12 @@ contract FBA {
 
     //     uint bidFallbackPrice = 0;
     //     uint askFallbackPrice = type(uint).max;
-    //     FBAHeap.FBAOrder memory bestBid = FBAHeap.peek(
+    //     FBAHeap.FBAOrder memory bestBid = FBAHeap.peekTopOne(
     //         bidAm,
     //         bidFallbackPrice,
     //         ISBUY
     //     );
-    //     FBAHeap.FBAOrder memory bestAsk = FBAHeap.peek(
+    //     FBAHeap.FBAOrder memory bestAsk = FBAHeap.peekTopOne(
     //         askAm,
     //         askFallbackPrice,
     //         ISSELL
@@ -222,20 +222,20 @@ contract FBA {
     //             bestAsk.amount = bestAsk.amount - fillAmount;
     //             FBAHeap.updateOrder(askAm, bestAsk, 0);
     //             // And now get the next bid for the next iteration...
-    //             bestBid = FBAHeap.peek(bidAm, bidFallbackPrice, ISBUY);
+    //             bestBid = FBAHeap.peekTopOne(bidAm, bidFallbackPrice, ISBUY);
     //         } else if (bestAsk.amount < bestBid.amount) {
     //             fillAmount = bestAsk.amount;
     //             FBAHeap.popOrder(maxHeapAsks, askAm, askMm);
     //             // Need to overwrite the ask size
     //             bestBid.amount = bestBid.amount - fillAmount;
     //             FBAHeap.updateOrder(bidAm, bestBid, 0);
-    //             bestAsk = FBAHeap.peek(askAm, askFallbackPrice, ISSELL);
+    //             bestAsk = FBAHeap.peekTopOne(askAm, askFallbackPrice, ISSELL);
     //         } else {
     //             fillAmount = bestAsk.amount;
     //             FBAHeap.popOrder(maxHeapBids, bidAm, bidMm);
     //             FBAHeap.popOrder(maxHeapAsks, askAm, askMm);
-    //             bestBid = FBAHeap.peek(bidAm, bidFallbackPrice, ISBUY);
-    //             bestAsk = FBAHeap.peek(askAm, askFallbackPrice, ISSELL);
+    //             bestBid = FBAHeap.peekTopOne(bidAm, bidFallbackPrice, ISBUY);
+    //             bestAsk = FBAHeap.peekTopOne(askAm, askFallbackPrice, ISSELL);
     //         }
     //         // And append a fill to our fills list...
     //         Fill memory fill = Fill(fillAmount, fillPrice);

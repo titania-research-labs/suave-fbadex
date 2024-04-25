@@ -82,7 +82,7 @@ library FBAHeap {
     /**
      * @notice Returns best bid/ask if exists, otherwise creates an element with extreme price
      */
-    function peek(
+    function peekTopOne(
         ArrayMetadata memory am,
         uint fallbackPrice,
         bool fallbackSide
@@ -95,6 +95,52 @@ library FBAHeap {
         bytes memory ordBytes = arrGet(am, 0);
         FBAOrder memory ord = abi.decode(ordBytes, (FBAOrder));
         return ord;
+    }
+
+    /**
+     * @notice Returns all bids/asks above or below a threshold
+     */
+    function peekTopList(
+        ArrayMetadata memory am,
+        uint threshold,
+        bool side,
+        uint fallbackPrice
+    ) internal returns (FBAOrder[] memory) {
+        // So if heap is empty create a new struct with the fallback values
+        if (am.length == 0) {
+            FBAOrder[] memory fallbackOrders = new FBAOrder[](1);
+            fallbackOrders[0] = FBAOrder(fallbackPrice, side, 0, "");
+            return fallbackOrders;
+        }
+
+        // Count the number of orders above the threshold
+        uint count = 0;
+        for (uint i = 0; i < am.length; i++) {
+            bytes memory ordBytes = arrGet(am, i);
+            FBAOrder memory ord = abi.decode(ordBytes, (FBAOrder));
+            if (side && (ord.price > threshold)) {
+                count++;
+            } else if (!side && (ord.price < threshold)) {
+                count++;
+            }
+        }
+
+        // Create an array to store the orders above the threshold
+        FBAOrder[] memory orders = new FBAOrder[](count);
+        uint index = 0;
+        for (uint i = 0; i < am.length; i++) {
+            bytes memory ordBytes = arrGet(am, i);
+            FBAOrder memory ord = abi.decode(ordBytes, (FBAOrder));
+            if (side && (ord.price > threshold)) {
+                orders[index] = ord;
+                index++;
+            } else if (!side && (ord.price < threshold)) {
+                orders[index] = ord;
+                index++;
+            }
+        }
+
+        return orders;
     }
 
     /**
