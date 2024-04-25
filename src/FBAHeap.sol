@@ -118,9 +118,9 @@ library FBAHeap {
         for (uint i = 0; i < am.length; i++) {
             bytes memory ordBytes = arrGet(am, i);
             FBAOrder memory ord = abi.decode(ordBytes, (FBAOrder));
-            if (side && (ord.price > threshold)) {
+            if (side && (ord.price >= threshold)) {
                 count++;
-            } else if (!side && (ord.price < threshold)) {
+            } else if (!side && (ord.price <= threshold)) {
                 count++;
             }
         }
@@ -131,10 +131,10 @@ library FBAHeap {
         for (uint i = 0; i < am.length; i++) {
             bytes memory ordBytes = arrGet(am, i);
             FBAOrder memory ord = abi.decode(ordBytes, (FBAOrder));
-            if (side && (ord.price > threshold)) {
+            if (side && (ord.price >= threshold)) {
                 orders[index] = ord;
                 index++;
-            } else if (!side && (ord.price < threshold)) {
+            } else if (!side && (ord.price <= threshold)) {
                 orders[index] = ord;
                 index++;
             }
