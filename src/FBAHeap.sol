@@ -201,16 +201,6 @@ library FBAHeap {
         Suave.confidentialStore(mm.ref, key, value);
     }
 
-    /**
-     * @notice Deletes value at a key
-     */
-    function mapDel(MapMetadata memory mm, string memory key) internal {
-        // TODO - if a user wanted to write this as a value, map would fail,
-        // can we track deleted keys instead?
-        bytes memory noBytes = new bytes(0);
-        mapWrite(mm, key, noBytes);
-    }
-
     //////////// Array methods
     /**
      * @notice Retreives array info.  This must be obtained in order to interact with array
@@ -266,18 +256,6 @@ library FBAHeap {
         require(index <= am.length, "Index out of bounds");
         string memory indexStr = Strings.toString(index);
         Suave.confidentialStore(am.ref, indexStr, value);
-    }
-
-    /**
-     * @notice Deletes an element from the array while preserving ordering
-     * @dev Moves all elements one to the left, so O(n) and be careful with large arrays
-     */
-    function arrDel(ArrayMetadata memory am, uint256 index) internal {
-        for (uint256 i = index; i < am.length - 1; i++) {
-            arrWrite(am, i, arrGet(am, i + 1));
-        }
-        am.length -= 1;
-        arrSetMetadata(am);
     }
 
     /**
