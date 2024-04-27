@@ -32,11 +32,7 @@ library FBAHeap {
     }
 
     //////////// Helper functions specific to FBA
-    function insertOrder(
-        ArrayMetadata memory am,
-        MapMetadata memory mm,
-        FBAOrder memory ord
-    ) internal {
+    function insertOrder(ArrayMetadata memory am, MapMetadata memory mm, FBAOrder memory ord) internal {
         // If side is 'true' it's bid side, and we have a max heap, otherwise asks and min heap
         bool maxHeap = ord.side;
 
@@ -56,12 +52,10 @@ library FBAHeap {
     /**
      * @notice To delete we will find the index of the order and then overwrite at that index
      */
-    function deleteOrder(
-        bool maxHeap,
-        ArrayMetadata memory am,
-        MapMetadata memory mm,
-        string memory clientId
-    ) internal returns (FBAOrder memory) {
+    function deleteOrder(bool maxHeap, ArrayMetadata memory am, MapMetadata memory mm, string memory clientId)
+        internal
+        returns (FBAOrder memory)
+    {
         bytes memory indBytes = mapGet(mm, clientId);
         uint256 ind = abi.decode(indBytes, (uint256));
         FBAOrder memory ord = deleteAtIndex(maxHeap, am, mm, ind);
@@ -71,22 +65,17 @@ library FBAHeap {
     /**
      * @notice Same idea as delete but it will always be the element at index 0
      */
-    function popOrder(
-        bool maxHeap,
-        ArrayMetadata memory am,
-        MapMetadata memory mm
-    ) internal {
+    function popOrder(bool maxHeap, ArrayMetadata memory am, MapMetadata memory mm) internal {
         deleteAtIndex(maxHeap, am, mm, 0);
     }
 
     /**
      * @notice Returns best bid/ask if exists, otherwise creates an element with extreme price
      */
-    function peekTopOne(
-        ArrayMetadata memory am,
-        uint fallbackPrice,
-        bool fallbackSide
-    ) internal returns (FBAOrder memory) {
+    function peekTopOne(ArrayMetadata memory am, uint256 fallbackPrice, bool fallbackSide)
+        internal
+        returns (FBAOrder memory)
+    {
         // So if heap is empty create a new struct with the fallback values
         if (am.length == 0) {
             return FBAOrder(fallbackPrice, fallbackSide, 0, "");
@@ -100,12 +89,10 @@ library FBAHeap {
     /**
      * @notice Returns all bids/asks above or below a threshold
      */
-    function peekTopList(
-        ArrayMetadata memory am,
-        uint threshold,
-        bool side,
-        uint fallbackPrice
-    ) internal returns (FBAOrder[] memory) {
+    function peekTopList(ArrayMetadata memory am, uint256 threshold, bool side, uint256 fallbackPrice)
+        internal
+        returns (FBAOrder[] memory)
+    {
         // So if heap is empty create a new struct with the fallback values
         if (am.length == 0) {
             FBAOrder[] memory fallbackOrders = new FBAOrder[](1);
@@ -114,8 +101,8 @@ library FBAHeap {
         }
 
         // Count the number of orders above the threshold
-        uint count = 0;
-        for (uint i = 0; i < am.length; i++) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < am.length; i++) {
             bytes memory ordBytes = arrGet(am, i);
             FBAOrder memory ord = abi.decode(ordBytes, (FBAOrder));
             if (side && (ord.price >= threshold)) {
@@ -127,8 +114,8 @@ library FBAHeap {
 
         // Create an array to store the orders above the threshold
         FBAOrder[] memory orders = new FBAOrder[](count);
-        uint index = 0;
-        for (uint i = 0; i < am.length; i++) {
+        uint256 index = 0;
+        for (uint256 i = 0; i < am.length; i++) {
             bytes memory ordBytes = arrGet(am, i);
             FBAOrder memory ord = abi.decode(ordBytes, (FBAOrder));
             if (side && (ord.price >= threshold)) {
@@ -146,11 +133,7 @@ library FBAHeap {
     /**
      * @notice Overwrites data for a specified order
      */
-    function updateOrder(
-        ArrayMetadata memory am,
-        FBAOrder memory ord,
-        uint index
-    ) internal {
+    function updateOrder(ArrayMetadata memory am, FBAOrder memory ord, uint256 index) internal {
         // Index will remain the same so we don't need to update our map here
         bytes memory val = abi.encode(ord);
         arrWrite(am, index, val);
@@ -160,9 +143,7 @@ library FBAHeap {
     /**
      * @notice Retreives map info.  This must be obtained in order to interact with map
      */
-    function mapGetMetadata(
-        Suave.DataId ref
-    ) internal returns (MapMetadata memory) {
+    function mapGetMetadata(Suave.DataId ref) internal returns (MapMetadata memory) {
         bytes memory val = Suave.confidentialRetrieve(ref, "metadata");
         MapMetadata memory am = abi.decode(val, (MapMetadata));
         return am;
@@ -178,10 +159,7 @@ library FBAHeap {
     /**
      * @notice Retrieves element corresponding to key
      */
-    function mapGet(
-        MapMetadata memory mm,
-        string memory key
-    ) internal returns (bytes memory) {
+    function mapGet(MapMetadata memory mm, string memory key) internal returns (bytes memory) {
         bytes memory val = Suave.confidentialRetrieve(mm.ref, key);
         // For consistency throw here - if we've deleted we'll have bytes(0),
         // If key doesn't exist we'll get a different failure, but want error each time
@@ -193,11 +171,7 @@ library FBAHeap {
     /**
      * @notice Writes key+value
      */
-    function mapWrite(
-        MapMetadata memory mm,
-        string memory key,
-        bytes memory value
-    ) internal {
+    function mapWrite(MapMetadata memory mm, string memory key, bytes memory value) internal {
         Suave.confidentialStore(mm.ref, key, value);
     }
 
@@ -205,9 +179,7 @@ library FBAHeap {
     /**
      * @notice Retreives array info.  This must be obtained in order to interact with array
      */
-    function arrGetMetadata(
-        Suave.DataId ref
-    ) internal returns (ArrayMetadata memory) {
+    function arrGetMetadata(Suave.DataId ref) internal returns (ArrayMetadata memory) {
         bytes memory val = Suave.confidentialRetrieve(ref, "metadata");
         ArrayMetadata memory am = abi.decode(val, (ArrayMetadata));
         return am;
@@ -223,10 +195,7 @@ library FBAHeap {
     /**
      * @notice Retrieves element at specific index
      */
-    function arrGet(
-        ArrayMetadata memory am,
-        uint256 index
-    ) internal returns (bytes memory) {
+    function arrGet(ArrayMetadata memory am, uint256 index) internal returns (bytes memory) {
         string memory indexStr = Strings.toString(index);
         bytes memory val = Suave.confidentialRetrieve(am.ref, indexStr);
         return val;
@@ -235,10 +204,7 @@ library FBAHeap {
     /**
      * @notice Appends to end of array and returns current array length
      */
-    function arrAppend(
-        ArrayMetadata memory am,
-        bytes memory value
-    ) internal returns (uint256) {
+    function arrAppend(ArrayMetadata memory am, bytes memory value) internal returns (uint256) {
         arrWrite(am, am.length, value);
         am.length += 1;
         arrSetMetadata(am);
@@ -248,11 +214,7 @@ library FBAHeap {
     /**
      * @notice Overwrite an element at specified index
      */
-    function arrWrite(
-        ArrayMetadata memory am,
-        uint256 index,
-        bytes memory value
-    ) internal {
+    function arrWrite(ArrayMetadata memory am, uint256 index, bytes memory value) internal {
         require(index <= am.length, "Index out of bounds");
         string memory indexStr = Strings.toString(index);
         Suave.confidentialStore(am.ref, indexStr, value);
@@ -261,12 +223,10 @@ library FBAHeap {
     /**
      * @notice Deletes an element at a specified index and then maintains heap
      */
-    function deleteAtIndex(
-        bool maxHeap,
-        ArrayMetadata memory am,
-        MapMetadata memory mm,
-        uint256 index
-    ) internal returns (FBAOrder memory) {
+    function deleteAtIndex(bool maxHeap, ArrayMetadata memory am, MapMetadata memory mm, uint256 index)
+        internal
+        returns (FBAOrder memory)
+    {
         require(index < am.length, "Index out of bounds");
         uint256 lastIndex = am.length - 1;
 
@@ -310,12 +270,7 @@ library FBAHeap {
     /**
      * @notice Maintains heap invariant by moving elements up
      */
-    function heapifyUp(
-        bool maxHeap,
-        ArrayMetadata memory am,
-        MapMetadata memory mm,
-        uint256 index
-    ) private {
+    function heapifyUp(bool maxHeap, ArrayMetadata memory am, MapMetadata memory mm, uint256 index) private {
         // Sorting based on price - but depending on whether bids or asks we
         // need to sort in different directions
         while (index > 0) {
@@ -347,12 +302,7 @@ library FBAHeap {
     /**
      * @notice Maintains heap invariant by moving elements down
      */
-    function heapifyDown(
-        bool maxHeap,
-        ArrayMetadata memory am,
-        MapMetadata memory mm,
-        uint256 index
-    ) private {
+    function heapifyDown(bool maxHeap, ArrayMetadata memory am, MapMetadata memory mm, uint256 index) private {
         uint256 leftChildInd;
         uint256 rightChildInd;
         uint256 largestInd;
@@ -371,10 +321,7 @@ library FBAHeap {
 
             if (leftChildInd <= lastInd) {
                 bytes memory ordChildBytes = arrGet(am, leftChildInd);
-                FBAOrder memory ordChild = abi.decode(
-                    ordChildBytes,
-                    (FBAOrder)
-                );
+                FBAOrder memory ordChild = abi.decode(ordChildBytes, (FBAOrder));
 
                 // Again sorting based on min/max heap
                 if (maxHeap && ordChild.price > ordLargest.price) {
@@ -390,10 +337,7 @@ library FBAHeap {
 
             if (rightChildInd <= lastInd) {
                 bytes memory ordChildBytes = arrGet(am, rightChildInd);
-                FBAOrder memory ordChild = abi.decode(
-                    ordChildBytes,
-                    (FBAOrder)
-                );
+                FBAOrder memory ordChild = abi.decode(ordChildBytes, (FBAOrder));
                 if (maxHeap && ordChild.price > ordLargest.price) {
                     ordLargestBytes = ordChildBytes;
                     ordLargest = ordChild;

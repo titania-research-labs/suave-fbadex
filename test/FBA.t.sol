@@ -13,9 +13,10 @@ contract TestForge is Test, SuaveEnabled {
     bool ISSELL = false;
 
     struct Fill {
-        uint amount;
-        uint price;
+        uint256 amount;
+        uint256 price;
     }
+
     event FillEvent(Fill);
     event OrderPlace(uint256 price, bool side, uint256 amount);
     event OrderCancel(uint256 price, bool side, uint256 amount);
@@ -43,12 +44,7 @@ contract TestForge is Test, SuaveEnabled {
         // Place logic - same as above but do a sell order
         string memory clientId = "abcd";
 
-        FBAHeap.FBAOrder memory ord = FBAHeap.FBAOrder(
-            100,
-            ISSELL,
-            123,
-            clientId
-        );
+        FBAHeap.FBAOrder memory ord = FBAHeap.FBAOrder(100, ISSELL, 123, clientId);
         address(fba).call(fba.placeOrder(ord));
 
         // Now confirm cancel works
@@ -62,21 +58,11 @@ contract TestForge is Test, SuaveEnabled {
         FBA fba = new FBA();
         address(fba).call(fba.initFBA());
 
-        uint tradePrice = 100;
-        FBAHeap.FBAOrder memory ordBuy = FBAHeap.FBAOrder(
-            tradePrice,
-            ISBUY,
-            100,
-            "abcd"
-        );
+        uint256 tradePrice = 100;
+        FBAHeap.FBAOrder memory ordBuy = FBAHeap.FBAOrder(tradePrice, ISBUY, 100, "abcd");
         address(fba).call(fba.placeOrder(ordBuy));
 
-        FBAHeap.FBAOrder memory ordSell = FBAHeap.FBAOrder(
-            tradePrice,
-            ISSELL,
-            80,
-            "defg"
-        );
+        FBAHeap.FBAOrder memory ordSell = FBAHeap.FBAOrder(tradePrice, ISSELL, 80, "defg");
         address(fba).call(fba.placeOrder(ordSell));
 
         bytes memory o = fba.executeFills();

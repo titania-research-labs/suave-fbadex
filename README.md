@@ -23,3 +23,9 @@ Use the ffi flag with Forge.
 ```shell
 $ forge test --ffi
 ```
+
+### Format
+
+```shell
+$ forge fmt
+```
