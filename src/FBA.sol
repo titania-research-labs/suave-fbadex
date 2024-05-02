@@ -22,9 +22,17 @@ contract FBA {
     // Simplifies placeOrder logic, will not actually be used for publicly storing fills!
     Fill[] public fills;
 
+    // Simplifies cancelOrder logic, will not actually be used for publicly storing fills!
+    Cancel[] public cancels;
+
     struct Fill {
         uint256 amount;
         uint256 price;
+    }
+
+    struct Cancel {
+        string clientId;
+        bool side;
     }
 
     struct PlaceResult {
@@ -34,14 +42,13 @@ contract FBA {
     }
 
     struct CancelResult {
-        uint256 price;
+        string clientId;
         bool side;
-        uint256 amount;
     }
 
     event FillEvent(Fill);
     event OrderPlace(uint256 price, bool side, uint256 amount);
-    event OrderCancel(uint256 price, bool side, uint256 amount);
+    event OrderCancel(string clientId, bool side);
 
     constructor() {
         addressList = new address[](1);
@@ -50,25 +57,27 @@ contract FBA {
     }
 
     function initFBA() external returns (bytes memory) {
-        // For the array
+        // For the bid, array
         Suave.DataRecord memory bidArr = Suave.newDataRecord(0, addressList, addressList, "suaveFBA:v0:dataId");
         FBAHeap.ArrayMetadata memory bidAm = FBAHeap.ArrayMetadata(0, bidArr.id);
         FBAHeap.arrSetMetadata(bidAm);
 
+        // For the ask, array
         Suave.DataRecord memory askArr = Suave.newDataRecord(0, addressList, addressList, "suaveFBA:v0:dataId");
         FBAHeap.ArrayMetadata memory askAm = FBAHeap.ArrayMetadata(0, askArr.id);
         FBAHeap.arrSetMetadata(askAm);
 
-        // For the map
+        // For the bid, map
         Suave.DataRecord memory bidMap = Suave.newDataRecord(0, addressList, addressList, "suaveFBA:v0:dataId");
         FBAHeap.MapMetadata memory bidMm = FBAHeap.MapMetadata(bidMap.id);
         FBAHeap.mapSetMetadata(bidMm);
 
+        // For the ask, map
         Suave.DataRecord memory askMap = Suave.newDataRecord(0, addressList, addressList, "suaveFBA:v0:dataId");
         FBAHeap.MapMetadata memory askMm = FBAHeap.MapMetadata(askMap.id);
         FBAHeap.mapSetMetadata(askMm);
 
-        return abi.encodeWithSelector(this.initFBACallback.selector, bidArr.id, askArr.id, bidMap.id, askMap.id);
+        return abi.encodeWithSelector(this.initFBACallback.selector, bidArr.id, bidMap.id, askArr.id, askMap.id);
     }
 
     function displayFills(Fill[] memory _fills) public payable {
@@ -82,43 +91,30 @@ contract FBA {
      * @notice Allows user to place a new order and immediately checks for fills
      */
     function placeOrder(FBAHeap.FBAOrder memory ord) external returns (bytes memory) {
-        FBAHeap.ArrayMetadata memory bidAm = FBAHeap.arrGetMetadata(bidArrayRef);
-        FBAHeap.MapMetadata memory bidMm = FBAHeap.mapGetMetadata(bidMapRef);
-        FBAHeap.ArrayMetadata memory askAm = FBAHeap.arrGetMetadata(askArrayRef);
-        FBAHeap.MapMetadata memory askMm = FBAHeap.mapGetMetadata(askMapRef);
-
         // Add it to bids or asks heap...
         if (ord.side == ISBUY) {
+            FBAHeap.ArrayMetadata memory bidAm = FBAHeap.arrGetMetadata(bidArrayRef);
+            FBAHeap.MapMetadata memory bidMm = FBAHeap.mapGetMetadata(bidMapRef);
             FBAHeap.insertOrder(bidAm, bidMm, ord);
         } else if (ord.side == ISSELL) {
+            FBAHeap.ArrayMetadata memory askAm = FBAHeap.arrGetMetadata(askArrayRef);
+            FBAHeap.MapMetadata memory askMm = FBAHeap.mapGetMetadata(askMapRef);
             FBAHeap.insertOrder(askAm, askMm, ord);
         }
 
         // Assuming order placement was always successful?
-        PlaceResult memory pr = PlaceResult(ord.price, ord.side, ord.amount);
-        return abi.encodeWithSelector(this.placeOrderCallback.selector, pr);
+        PlaceResult memory placeResult = PlaceResult(ord.price, ord.side, ord.amount);
+        return abi.encodeWithSelector(this.placeOrderCallback.selector, placeResult);
     }
 
     /**
      * @notice Allows user to cancel an order they previously placed
      */
     function cancelOrder(string memory clientId, bool side) external returns (bytes memory) {
-        FBAHeap.FBAOrder memory ord;
+        cancels.push(Cancel(clientId, side));
 
-        if (side == ISBUY) {
-            bool maxHeapBids = true;
-            FBAHeap.ArrayMetadata memory bidAm = FBAHeap.arrGetMetadata(bidArrayRef);
-            FBAHeap.MapMetadata memory bidMm = FBAHeap.mapGetMetadata(bidMapRef);
-            ord = FBAHeap.deleteOrder(maxHeapBids, bidAm, bidMm, clientId);
-        } else if (side == ISSELL) {
-            bool maxHeapAsks = false;
-            FBAHeap.ArrayMetadata memory askAm = FBAHeap.arrGetMetadata(askArrayRef);
-            FBAHeap.MapMetadata memory askMm = FBAHeap.mapGetMetadata(askMapRef);
-            ord = FBAHeap.deleteOrder(maxHeapAsks, askAm, askMm, clientId);
-        }
-
-        CancelResult memory orderResult = CancelResult(ord.price, ord.side, ord.amount);
-        return abi.encodeWithSelector(this.cancelOrderCallback.selector, orderResult);
+        CancelResult memory cancelResult = CancelResult(clientId, side);
+        return abi.encodeWithSelector(this.cancelOrderCallback.selector, cancelResult);
     }
 
     // TODO: optimize this part by using `break` when there is no more order at the price
@@ -225,8 +221,8 @@ contract FBA {
 
     function initFBACallback(
         Suave.DataId _bidArrayRef,
-        Suave.DataId _askArrayRef,
         Suave.DataId _bidMapRef,
+        Suave.DataId _askArrayRef,
         Suave.DataId _askMapRef
     ) public payable {
         askArrayRef = _askArrayRef;
@@ -235,11 +231,11 @@ contract FBA {
         bidMapRef = _bidMapRef;
     }
 
-    function placeOrderCallback(PlaceResult memory orderResult) public payable {
-        emit OrderPlace(orderResult.price, orderResult.side, orderResult.amount);
+    function placeOrderCallback(PlaceResult memory result) public payable {
+        emit OrderPlace(result.price, result.side, result.amount);
     }
 
-    function cancelOrderCallback(CancelResult memory orderResult) public payable {
-        emit OrderCancel(orderResult.price, orderResult.side, orderResult.amount);
+    function cancelOrderCallback(CancelResult memory result) public payable {
+        emit OrderCancel(result.clientId, result.side);
     }
 }
