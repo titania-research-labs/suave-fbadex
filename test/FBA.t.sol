@@ -19,7 +19,7 @@ contract TestForge is Test, SuaveEnabled {
 
     event FillEvent(Fill);
     event OrderPlace(uint256 price, bool side, uint256 amount);
-    event OrderCancel(uint256 price, bool side, uint256 amount);
+    event OrderCancel(string clientId, bool side);
 
     function testPlaceOrder() public {
         // Test should:
@@ -50,7 +50,7 @@ contract TestForge is Test, SuaveEnabled {
         // Now confirm cancel works
         bytes memory o = fba.cancelOrder(clientId, ISSELL);
         vm.expectEmit(true, true, true, true);
-        emit OrderCancel(ord.price, ord.side, ord.amount);
+        emit OrderCancel(clientId, ISSELL);
         address(fba).call(o);
     }
 
