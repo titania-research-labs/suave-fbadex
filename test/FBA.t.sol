@@ -41,9 +41,7 @@ contract TestForge is Test, SuaveEnabled {
         FBA fba = new FBA();
         address(fba).call(fba.initFBA());
 
-        // Place logic - same as above but do a sell order
         string memory clientId = "abcd";
-
         FBAHeap.FBAOrder memory ord = FBAHeap.FBAOrder(100, ISSELL, 123, clientId);
         address(fba).call(fba.placeOrder(ord));
 
@@ -62,7 +60,7 @@ contract TestForge is Test, SuaveEnabled {
         FBAHeap.FBAOrder memory ordBuy = FBAHeap.FBAOrder(tradePrice, ISBUY, 100, "abcd");
         address(fba).call(fba.placeOrder(ordBuy));
 
-        FBAHeap.FBAOrder memory ordSell = FBAHeap.FBAOrder(tradePrice, ISSELL, 80, "defg");
+        FBAHeap.FBAOrder memory ordSell = FBAHeap.FBAOrder(tradePrice, ISSELL, 80, "efgh");
         address(fba).call(fba.placeOrder(ordSell));
 
         bytes memory o = fba.executeFills();
@@ -109,4 +107,26 @@ contract TestForge is Test, SuaveEnabled {
     //     emit FillEvent(f);
     //     address(fba).call(o);
     // }
+
+    function testCancelOrderBuy2Sell1BuyCancel1() public {
+        FBA fba = new FBA();
+        address(fba).call(fba.initFBA());
+
+        uint256 tradePrice = 100;
+        string memory clientId = "abcd";
+        FBAHeap.FBAOrder memory ordBuy = FBAHeap.FBAOrder(tradePrice, ISBUY, 100, clientId);
+        address(fba).call(fba.placeOrder(ordBuy));
+        address(fba).call(fba.placeOrder(ordBuy));
+        FBAHeap.FBAOrder memory ordSell = FBAHeap.FBAOrder(tradePrice, ISSELL, 80, "efgh");
+        address(fba).call(fba.placeOrder(ordSell));
+
+        address(fba).call(fba.cancelOrder(clientId, ISBUY));
+
+        bytes memory o = fba.executeFills();
+        // This should have resulted in a matching order of amount 80 at price 100
+        Fill memory f = Fill(80, 100);
+        vm.expectEmit(true, true, true, true);
+        emit FillEvent(f);
+        address(fba).call(o);
+    }
 }

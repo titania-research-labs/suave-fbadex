@@ -157,7 +157,21 @@ contract FBA {
             prices[i] = 95 + i;
         }
 
-        // First part: match orders with the same price
+        //////////// First part: prioritize the cancel orders
+        for (uint256 i = 0; i < cancels.length; i++) {
+            string memory clientId = cancels[i].clientId;
+            bool side = cancels[i].side;
+
+            if (side == ISBUY) {
+                FBAHeap.deleteOrder(side, bidAm, bidMm, clientId);
+            } else if (side == ISSELL) {
+                FBAHeap.deleteOrder(side, askAm, askMm, clientId);
+            }
+        }
+        // remove all cancel orders
+        cancels = new Cancel[](0);
+
+        //////////// Second part: match orders with the same price
         for (uint256 i = 0; i < prices.length; i++) {
             uint256 price = prices[i];
 
@@ -207,7 +221,7 @@ contract FBA {
             }
         }
 
-        // Second part: match orders with different prices
+        //////////// Third part: match orders with different prices
         // ...
 
         return abi.encodeWithSelector(this.executeFillsCallback.selector, fills);
