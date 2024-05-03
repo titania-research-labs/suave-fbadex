@@ -143,20 +143,6 @@ contract FBA {
         FBAHeap.ArrayMetadata memory askAm = FBAHeap.arrGetMetadata(askArrayRef);
         FBAHeap.MapMetadata memory askMm = FBAHeap.mapGetMetadata(askMapRef);
 
-        uint256 bidFallbackPrice = 0;
-        uint256 askFallbackPrice = type(uint256).max;
-        FBAHeap.FBAOrder memory bestBid = FBAHeap.peekTopOne(bidAm, bidFallbackPrice, ISBUY);
-        // asks and bids are the orders that will be possibly matched
-        FBAHeap.FBAOrder[] memory asks = FBAHeap.peekTopList(askAm, bestBid.price, ISSELL, askFallbackPrice);
-        FBAHeap.FBAOrder[] memory bids = FBAHeap.peekTopList(bidAm, asks[0].price, ISBUY, bidFallbackPrice);
-
-        // TODO: replace with a dynamic array
-        uint256[] memory prices = new uint256[](11);
-        // prices: [95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105]
-        for (uint256 i = 0; i < 11; i++) {
-            prices[i] = 95 + i;
-        }
-
         //////////// First part: prioritize the cancel orders
         for (uint256 i = 0; i < cancels.length; i++) {
             string memory clientId = cancels[i].clientId;
@@ -172,14 +158,28 @@ contract FBA {
         cancels = new Cancel[](0);
 
         //////////// Second part: match orders with the same price
+        uint256 bidFallbackPrice = 0;
+        uint256 askFallbackPrice = type(uint256).max;
+        FBAHeap.FBAOrder memory bestBid = FBAHeap.peekTopOne(bidAm, bidFallbackPrice, ISBUY);
+        // asks and bids are the orders that will be possibly matched
+        FBAHeap.FBAOrder[] memory asks = FBAHeap.peekTopList(askAm, bestBid.price, ISSELL, askFallbackPrice);
+        FBAHeap.FBAOrder[] memory bids = FBAHeap.peekTopList(bidAm, asks[0].price, ISBUY, bidFallbackPrice);
+
+        // TODO: replace with a dynamic array
+        uint256[] memory prices = new uint256[](11);
+        // prices: [95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105]
+        for (uint256 i = 0; i < 11; i++) {
+            prices[i] = 95 + i;
+        }
+
         for (uint256 i = 0; i < prices.length; i++) {
             uint256 price = prices[i];
 
-            // Get all order indices with the same price
+            // get all order indices with the same price
             (uint256[] memory bidIndices, uint256 nBids, uint256 bidTotalAmount) = getOrdersInfoAtPrice(bids, price);
             (uint256[] memory askIndices, uint256 nAsks, uint256 askTotalAmount) = getOrdersInfoAtPrice(asks, price);
 
-            // Match orders with the same price
+            // match orders with the same price
             uint256 fillRatio;
             if (bidTotalAmount > askTotalAmount) {
                 // ask side is fully filled
@@ -222,7 +222,84 @@ contract FBA {
         }
 
         //////////// Third part: match orders with different prices
-        // ...
+        // take bids and asks again
+        bestBid = FBAHeap.peekTopOne(bidAm, bidFallbackPrice, ISBUY);
+        asks = FBAHeap.peekTopList(askAm, bestBid.price, ISSELL, askFallbackPrice);
+        bids = FBAHeap.peekTopList(bidAm, asks[0].price, ISBUY, bidFallbackPrice);
+
+        // if there is no order in either side (in other words, no excess of demand and supply), finish the function
+        if (bids.length == 0 || asks.length == 0) {
+            return abi.encodeWithSelector(this.executeFillsCallback.selector, fills);
+        }
+
+        // get all prices in bids and asks
+        uint256 averagePrice = 0;
+        uint256 numNonZero = 0;
+        for (uint256 i = 0; i < bids.length; i++) {
+            if (bids[i].price != 0) {
+                averagePrice += bids[i].price;
+                numNonZero++;
+            }
+        }
+        for (uint256 i = 0; i < asks.length; i++) {
+            if (asks[i].price != 0) {
+                averagePrice += asks[i].price;
+                numNonZero++;
+            }
+        }
+        averagePrice /= numNonZero;
+
+        // get total amount in bids
+        uint256 bidTotalAmount = 0;
+        for (uint256 i = 0; i < bids.length; i++) {
+            bidTotalAmount += bids[i].amount;
+        }
+        // get total amount in asks
+        uint256 askTotalAmount = 0;
+        for (uint256 i = 0; i < asks.length; i++) {
+            askTotalAmount += asks[i].amount;
+        }
+
+        // match orders with different prices
+        uint256 fillRatio;
+        if (bidTotalAmount > askTotalAmount) {
+            // ask side is fully filled
+            // ask side that has less amount
+            for (uint256 i = 0; i < asks.length; i++) {
+                FBAHeap.deleteAtIndex(ISSELL, askAm, askMm, i);
+            }
+            // bid side that has more amount
+            fillRatio = askTotalAmount / bidTotalAmount;
+            for (uint256 i = 0; i < bids.length; i++) {
+                FBAHeap.FBAOrder memory order = bids[i];
+                order.amount -= fillRatio * order.amount;
+                FBAHeap.updateOrder(bidAm, order, i);
+            }
+            fills.push(Fill(askTotalAmount, averagePrice));
+        } else if (bidTotalAmount < askTotalAmount) {
+            // bid side is fully filled
+            // bid side that has less amount
+            for (uint256 i = 0; i < bids.length; i++) {
+                FBAHeap.deleteAtIndex(ISBUY, bidAm, bidMm, i);
+            }
+            // ask side that has more amount
+            fillRatio = bidTotalAmount / askTotalAmount;
+            for (uint256 i = 0; i < asks.length; i++) {
+                FBAHeap.FBAOrder memory order = asks[i];
+                order.amount -= fillRatio * order.amount;
+                FBAHeap.updateOrder(askAm, order, i);
+            }
+            fills.push(Fill(bidTotalAmount, averagePrice));
+        } else {
+            // both sides are fully filled
+            for (uint256 i = 0; i < asks.length; i++) {
+                FBAHeap.deleteAtIndex(ISSELL, askAm, askMm, i);
+            }
+            for (uint256 i = 0; i < bids.length; i++) {
+                FBAHeap.deleteAtIndex(ISBUY, bidAm, bidMm, i);
+            }
+            fills.push(Fill(askTotalAmount, averagePrice));
+        }
 
         return abi.encodeWithSelector(this.executeFillsCallback.selector, fills);
     }

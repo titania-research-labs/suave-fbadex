@@ -52,7 +52,7 @@ contract TestForge is Test, SuaveEnabled {
         address(fba).call(o);
     }
 
-    function testMatchOrderBuy1Sell1() public {
+    function testMatchOrderAtSamePriceCase1() public {
         FBA fba = new FBA();
         address(fba).call(fba.initFBA());
 
@@ -72,7 +72,7 @@ contract TestForge is Test, SuaveEnabled {
     }
 
     // // TODO: this test is failing because of arithmetic overflow or underflow
-    // function testMatchOrderBuy1Sell2() public {
+    // function testMatchOrderAtSamePriceCase2() public {
     //     FBA fba = new FBA();
     //     address(fba).call(fba.initFBA());
 
@@ -108,7 +108,25 @@ contract TestForge is Test, SuaveEnabled {
     //     address(fba).call(o);
     // }
 
-    function testCancelOrderBuy2Sell1BuyCancel1() public {
+    function testMatchOrderAtDifferentPriceCase1() public {
+        FBA fba = new FBA();
+        address(fba).call(fba.initFBA());
+
+        FBAHeap.FBAOrder memory ordBuy = FBAHeap.FBAOrder(101, ISBUY, 100, "abcd");
+        address(fba).call(fba.placeOrder(ordBuy));
+
+        FBAHeap.FBAOrder memory ordSell = FBAHeap.FBAOrder(99, ISSELL, 80, "efgh");
+        address(fba).call(fba.placeOrder(ordSell));
+
+        bytes memory o = fba.executeFills();
+        // This should have resulted in a matching order of amount 80 at price 100
+        Fill memory f = Fill(80, 100);
+        vm.expectEmit(true, true, true, true);
+        emit FillEvent(f);
+        address(fba).call(o);
+    }
+
+    function testCancelOrder() public {
         FBA fba = new FBA();
         address(fba).call(fba.initFBA());
 
