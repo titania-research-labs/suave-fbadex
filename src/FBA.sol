@@ -165,15 +165,14 @@ contract FBA {
         FBAHeap.FBAOrder[] memory asks = FBAHeap.peekTopList(askAm, bestBid.price, ISSELL, askFallbackPrice);
         FBAHeap.FBAOrder[] memory bids = FBAHeap.peekTopList(bidAm, asks[0].price, ISBUY, bidFallbackPrice);
 
-        // TODO: replace with a dynamic array
-        uint256[] memory prices = new uint256[](11);
-        // prices: [95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105]
-        for (uint256 i = 0; i < 11; i++) {
-            prices[i] = 95 + i;
-        }
+        uint256 previousPrice = 0;
+        for (uint256 i = 0; i < asks.length; i++) {
+            uint256 price = asks[i].price;
 
-        for (uint256 i = 0; i < prices.length; i++) {
-            uint256 price = prices[i];
+            // if the price is the same as the previous price, skip the matching because it is already done
+            if (previousPrice == price) {
+                continue;
+            }
 
             // get all order indices with the same price
             (uint256[] memory bidIndices, uint256 nBids, uint256 bidTotalAmount) = getOrdersInfoAtPrice(bids, price);
@@ -219,6 +218,8 @@ contract FBA {
                 }
                 fills.push(Fill(askTotalAmount, price));
             }
+
+            previousPrice = price;
         }
 
         //////////// Third part: match orders with different prices
@@ -232,7 +233,7 @@ contract FBA {
             return abi.encodeWithSelector(this.executeFillsCallback.selector, fills);
         }
 
-        // get all prices in bids and asks
+        // get average price in bids and asks
         uint256 averagePrice = 0;
         uint256 numNonZero = 0;
         for (uint256 i = 0; i < bids.length; i++) {

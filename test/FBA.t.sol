@@ -126,7 +126,7 @@ contract TestForge is Test, SuaveEnabled {
         address(fba).call(o);
     }
 
-    function testCancelOrder() public {
+    function testMatchOrderWithCancel() public {
         FBA fba = new FBA();
         address(fba).call(fba.initFBA());
 
