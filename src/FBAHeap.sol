@@ -239,25 +239,31 @@ library FBAHeap {
         FBAOrder memory deletedItem = abi.decode(ordBytesDel, (FBAOrder));
 
         // TODO - Are we deleting the map value here?  Or is deletion implicit?
-        // mapWrite(mm, ordBytesDel.clientId, abi.encode(index));
+        // mapWrite(mm, deletedItem.clientId, abi.encode(index));
 
-        if (index != lastIndex) {
-            // Copy final value to current index...
-            bytes memory ordBytes = arrGet(am, lastIndex);
-            FBAOrder memory ord = abi.decode(ordBytes, (FBAOrder));
-            arrWrite(am, index, ordBytes);
-            mapWrite(mm, ord.clientId, abi.encode(index));
+        // if the index is last, ...
+        if (index == lastIndex) {
+            return deletedItem;
+        } else if (index == 0) {
+            heapifyDown(maxHeap, am, mm, index);
+            return deletedItem;
+        }
 
-            // Need to see if we need to heapify up/down
-            uint256 indexCompare = (index - 1) / 2;
-            bytes memory ordBytesComp = arrGet(am, indexCompare);
-            FBAOrder memory ordComp = abi.decode(ordBytesComp, (FBAOrder));
+        // Copy final value to current index...
+        bytes memory ordBytes = arrGet(am, lastIndex);
+        FBAOrder memory ord = abi.decode(ordBytes, (FBAOrder));
+        arrWrite(am, index, ordBytes);
+        mapWrite(mm, ord.clientId, abi.encode(index));
 
-            if (index == 0 || ord.price <= ordComp.price) {
-                heapifyDown(maxHeap, am, mm, index);
-            } else {
-                heapifyUp(maxHeap, am, mm, index);
-            }
+        // Need to see if we need to heapify up/down
+        uint256 indexParent = (index - 1) / 2;
+        bytes memory ordParentBytes = arrGet(am, indexParent);
+        FBAOrder memory ordParent = abi.decode(ordParentBytes, (FBAOrder));
+
+        if (maxHeap && ord.price <= ordParent.price || !maxHeap && ord.price >= ordParent.price) {
+            heapifyDown(maxHeap, am, mm, index);
+        } else {
+            heapifyUp(maxHeap, am, mm, index);
         }
         // Think we do NOT need to pop?
         // else {
@@ -282,9 +288,9 @@ library FBAHeap {
             FBAOrder memory ordParent = abi.decode(ordParentBytes, (FBAOrder));
 
             // Sort one way or the other based on min/max heap
-            if (maxHeap && ord.price <= ordParent.price) {
+            if (maxHeap && ord.price <= ordParent.price) { // in max heap invariant, parent should be greater than child
                 break;
-            } else if (!maxHeap && ord.price >= ordParent.price) {
+            } else if (!maxHeap && ord.price >= ordParent.price) { // in min heap invariant, parent should be smaller than child
                 break;
             }
 
