@@ -132,12 +132,14 @@ contract TestForge is Test, SuaveEnabled {
 
         uint256 tradePrice = 100;
         string memory clientId = "abcd";
-        FBAHeap.FBAOrder memory ordBuy = FBAHeap.FBAOrder(tradePrice, ISBUY, 100, clientId);
-        address(fba).call(fba.placeOrder(ordBuy));
-        address(fba).call(fba.placeOrder(ordBuy));
+        FBAHeap.FBAOrder memory ordBuy1 = FBAHeap.FBAOrder(tradePrice, ISBUY, 100, clientId);
+        FBAHeap.FBAOrder memory ordBuy2 = FBAHeap.FBAOrder(tradePrice, ISBUY, 50, clientId);
+        address(fba).call(fba.placeOrder(ordBuy1));
+        address(fba).call(fba.placeOrder(ordBuy2));
         FBAHeap.FBAOrder memory ordSell = FBAHeap.FBAOrder(tradePrice, ISSELL, 80, "efgh");
         address(fba).call(fba.placeOrder(ordSell));
 
+        // this should cancel the second buy order
         address(fba).call(fba.cancelOrder(clientId, ISBUY));
 
         bytes memory o = fba.executeFills();

@@ -39,9 +39,9 @@ contract TestForge is Test, SuaveEnabled {
         (FBAHeap.ArrayMetadata memory am, FBAHeap.MapMetadata memory mm) = deployHeap();
 
         FBAHeap.FBAOrder memory insertedOrd = FBAHeap.FBAOrder(100, side, 123, "abcd");
-        FBAHeap.insertOrder(am, mm, insertedOrd);
+        FBAHeap.insertOrder(insertedOrd, am, mm);
 
-        FBAHeap.FBAOrder memory peekedOrd = FBAHeap.peekTopOne(am, getExtPrice(side), side);
+        FBAHeap.FBAOrder memory peekedOrd = FBAHeap.getTopOrder(am, side, getExtPrice(side));
 
         assertEq(insertedOrd.amount, peekedOrd.amount);
         assertEq(insertedOrd.price, peekedOrd.price);
@@ -49,17 +49,17 @@ contract TestForge is Test, SuaveEnabled {
     }
 
     function testDeleteBidOrder() public {
-        bool side = true; // ask side
+        bool side = true; // bid side
         (FBAHeap.ArrayMetadata memory am, FBAHeap.MapMetadata memory mm) = deployHeap();
 
         FBAHeap.FBAOrder memory insertedOrd1 = FBAHeap.FBAOrder(100, side, 123, "abcd");
         FBAHeap.FBAOrder memory insertedOrd2 = FBAHeap.FBAOrder(101, side, 456, "efgh");
 
-        FBAHeap.insertOrder(am, mm, insertedOrd1);
-        FBAHeap.insertOrder(am, mm, insertedOrd2);
-        FBAHeap.deleteOrder(side, am, mm, insertedOrd1.clientId);
+        FBAHeap.insertOrder(insertedOrd1, am, mm);
+        FBAHeap.insertOrder(insertedOrd2, am, mm);
+        FBAHeap.deleteOrder(insertedOrd1.clientId, side, am, mm);
 
-        FBAHeap.FBAOrder memory peekedOrd = FBAHeap.peekTopOne(am, getExtPrice(side), side);
+        FBAHeap.FBAOrder memory peekedOrd = FBAHeap.getTopOrder(am, side, getExtPrice(side));
 
         assertEq(insertedOrd2.amount, peekedOrd.amount);
         assertEq(insertedOrd2.price, peekedOrd.price);
@@ -77,11 +77,11 @@ contract TestForge is Test, SuaveEnabled {
         FBAHeap.FBAOrder memory insertedOrd2 = FBAHeap.FBAOrder(104, side, 123, "defg");
         FBAHeap.FBAOrder memory insertedOrd3 = FBAHeap.FBAOrder(102, side, 123, "hijk");
 
-        FBAHeap.insertOrder(am, mm, insertedOrd1);
-        FBAHeap.insertOrder(am, mm, insertedOrd2);
-        FBAHeap.insertOrder(am, mm, insertedOrd3);
+        FBAHeap.insertOrder(insertedOrd1, am, mm);
+        FBAHeap.insertOrder(insertedOrd2, am, mm);
+        FBAHeap.insertOrder(insertedOrd3, am, mm);
 
-        FBAHeap.FBAOrder[] memory peekedOrds = FBAHeap.peekTopList(am, 100, side, getExtPrice(side));
+        FBAHeap.FBAOrder[] memory peekedOrds = FBAHeap.getTopOrderList(100, side, am, getExtPrice(side));
 
         assertEq(peekedOrds.length, 2);
         assertEq(insertedOrd2.amount, peekedOrds[0].amount);
@@ -101,11 +101,11 @@ contract TestForge is Test, SuaveEnabled {
         FBAHeap.FBAOrder memory insertedOrd1 = FBAHeap.FBAOrder(97, side, 123, "abcd");
         FBAHeap.FBAOrder memory insertedOrd2 = FBAHeap.FBAOrder(95, side, 123, "defg");
         FBAHeap.FBAOrder memory insertedOrd3 = FBAHeap.FBAOrder(100, side, 123, "hijk");
-        FBAHeap.insertOrder(am, mm, insertedOrd1);
-        FBAHeap.insertOrder(am, mm, insertedOrd2);
-        FBAHeap.insertOrder(am, mm, insertedOrd3);
+        FBAHeap.insertOrder(insertedOrd1, am, mm);
+        FBAHeap.insertOrder(insertedOrd2, am, mm);
+        FBAHeap.insertOrder(insertedOrd3, am, mm);
 
-        FBAHeap.FBAOrder[] memory peekedOrds = FBAHeap.peekTopList(am, 99, side, getExtPrice(side));
+        FBAHeap.FBAOrder[] memory peekedOrds = FBAHeap.getTopOrderList(99, side, am, getExtPrice(side));
 
         assertEq(peekedOrds.length, 2);
         assertEq(insertedOrd2.amount, peekedOrds[0].amount);

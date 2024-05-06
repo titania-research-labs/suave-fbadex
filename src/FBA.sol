@@ -95,11 +95,11 @@ contract FBA {
         if (ord.side == ISBUY) {
             FBAHeap.ArrayMetadata memory bidAm = FBAHeap.arrGetMetadata(bidArrayRef);
             FBAHeap.MapMetadata memory bidMm = FBAHeap.mapGetMetadata(bidMapRef);
-            FBAHeap.insertOrder(bidAm, bidMm, ord);
+            FBAHeap.insertOrder(ord, bidAm, bidMm);
         } else if (ord.side == ISSELL) {
             FBAHeap.ArrayMetadata memory askAm = FBAHeap.arrGetMetadata(askArrayRef);
             FBAHeap.MapMetadata memory askMm = FBAHeap.mapGetMetadata(askMapRef);
-            FBAHeap.insertOrder(askAm, askMm, ord);
+            FBAHeap.insertOrder(ord, askAm, askMm);
         }
 
         // Assuming order placement was always successful?
@@ -149,9 +149,9 @@ contract FBA {
             bool side = cancels[i].side;
 
             if (side == ISBUY) {
-                FBAHeap.deleteOrder(side, bidAm, bidMm, clientId);
+                FBAHeap.deleteOrder(clientId, side, bidAm, bidMm);
             } else if (side == ISSELL) {
-                FBAHeap.deleteOrder(side, askAm, askMm, clientId);
+                FBAHeap.deleteOrder(clientId, side, askAm, askMm);
             }
         }
         // remove all cancel orders
@@ -160,10 +160,10 @@ contract FBA {
         //////////// Second part: match orders with the same price
         uint256 bidFallbackPrice = 0;
         uint256 askFallbackPrice = type(uint256).max;
-        FBAHeap.FBAOrder memory bestBid = FBAHeap.peekTopOne(bidAm, bidFallbackPrice, ISBUY);
+        FBAHeap.FBAOrder memory bestBid = FBAHeap.getTopOrder(bidAm, ISBUY, bidFallbackPrice);
         // asks and bids are the orders that will be possibly matched
-        FBAHeap.FBAOrder[] memory asks = FBAHeap.peekTopList(askAm, bestBid.price, ISSELL, askFallbackPrice);
-        FBAHeap.FBAOrder[] memory bids = FBAHeap.peekTopList(bidAm, asks[0].price, ISBUY, bidFallbackPrice);
+        FBAHeap.FBAOrder[] memory asks = FBAHeap.getTopOrderList(bestBid.price, ISSELL, askAm, askFallbackPrice);
+        FBAHeap.FBAOrder[] memory bids = FBAHeap.getTopOrderList(asks[0].price, ISBUY, bidAm, bidFallbackPrice);
 
         uint256 previousPrice = 0;
         for (uint256 i = 0; i < asks.length; i++) {
@@ -184,37 +184,37 @@ contract FBA {
                 // ask side is fully filled
                 // ask side that has less amount
                 for (uint256 j = 0; j < nAsks; j++) {
-                    FBAHeap.deleteAtIndex(ISSELL, askAm, askMm, askIndices[j]);
+                    FBAHeap.deleteAtIndex(askIndices[j], ISSELL, askAm, askMm);
                 }
                 // bid side that has more amount
                 fillRatio = askTotalAmount / bidTotalAmount;
                 for (uint256 j = 0; j < nBids; j++) {
                     FBAHeap.FBAOrder memory order = bids[bidIndices[j]];
                     order.amount -= fillRatio * order.amount;
-                    FBAHeap.updateOrder(bidAm, order, bidIndices[j]);
+                    FBAHeap.updateOrder(order, bidIndices[j], bidAm);
                 }
                 fills.push(Fill(askTotalAmount, price));
             } else if (bidTotalAmount < askTotalAmount) {
                 // bid side is fully filled
                 // bid side that has less amount
                 for (uint256 j = 0; j < nBids; j++) {
-                    FBAHeap.deleteAtIndex(ISBUY, bidAm, bidMm, bidIndices[j]);
+                    FBAHeap.deleteAtIndex(bidIndices[j], ISBUY, bidAm, bidMm);
                 }
                 // ask side that has more amount
                 fillRatio = bidTotalAmount / askTotalAmount;
                 for (uint256 j = 0; j < nAsks; j++) {
                     FBAHeap.FBAOrder memory order = asks[askIndices[j]];
                     order.amount -= fillRatio * order.amount;
-                    FBAHeap.updateOrder(askAm, order, askIndices[j]);
+                    FBAHeap.updateOrder(order, askIndices[j], askAm);
                 }
                 fills.push(Fill(bidTotalAmount, price));
             } else {
                 // both sides are fully filled
                 for (uint256 j = 0; j < nAsks; j++) {
-                    FBAHeap.deleteAtIndex(ISSELL, askAm, askMm, askIndices[j]);
+                    FBAHeap.deleteAtIndex(askIndices[j], ISSELL, askAm, askMm);
                 }
                 for (uint256 j = 0; j < nBids; j++) {
-                    FBAHeap.deleteAtIndex(ISBUY, bidAm, bidMm, bidIndices[j]);
+                    FBAHeap.deleteAtIndex(bidIndices[j], ISBUY, bidAm, bidMm);
                 }
                 fills.push(Fill(askTotalAmount, price));
             }
@@ -224,9 +224,9 @@ contract FBA {
 
         //////////// Third part: match orders with different prices
         // take bids and asks again
-        bestBid = FBAHeap.peekTopOne(bidAm, bidFallbackPrice, ISBUY);
-        asks = FBAHeap.peekTopList(askAm, bestBid.price, ISSELL, askFallbackPrice);
-        bids = FBAHeap.peekTopList(bidAm, asks[0].price, ISBUY, bidFallbackPrice);
+        bestBid = FBAHeap.getTopOrder(bidAm, ISBUY, bidFallbackPrice);
+        asks = FBAHeap.getTopOrderList(bestBid.price, ISSELL, askAm, askFallbackPrice);
+        bids = FBAHeap.getTopOrderList(asks[0].price, ISBUY, bidAm, bidFallbackPrice);
 
         // if there is no order in either side (in other words, no excess of demand and supply), finish the function
         if (bids.length == 0 || asks.length == 0) {
@@ -267,37 +267,37 @@ contract FBA {
             // ask side is fully filled
             // ask side that has less amount
             for (uint256 i = 0; i < asks.length; i++) {
-                FBAHeap.deleteAtIndex(ISSELL, askAm, askMm, i);
+                FBAHeap.deleteAtIndex(i, ISSELL, askAm, askMm);
             }
             // bid side that has more amount
             fillRatio = askTotalAmount / bidTotalAmount;
             for (uint256 i = 0; i < bids.length; i++) {
                 FBAHeap.FBAOrder memory order = bids[i];
                 order.amount -= fillRatio * order.amount;
-                FBAHeap.updateOrder(bidAm, order, i);
+                FBAHeap.updateOrder(order, i, bidAm);
             }
             fills.push(Fill(askTotalAmount, averagePrice));
         } else if (bidTotalAmount < askTotalAmount) {
             // bid side is fully filled
             // bid side that has less amount
             for (uint256 i = 0; i < bids.length; i++) {
-                FBAHeap.deleteAtIndex(ISBUY, bidAm, bidMm, i);
+                FBAHeap.deleteAtIndex(i, ISBUY, bidAm, bidMm);
             }
             // ask side that has more amount
             fillRatio = bidTotalAmount / askTotalAmount;
             for (uint256 i = 0; i < asks.length; i++) {
                 FBAHeap.FBAOrder memory order = asks[i];
                 order.amount -= fillRatio * order.amount;
-                FBAHeap.updateOrder(askAm, order, i);
+                FBAHeap.updateOrder(order, i, askAm);
             }
             fills.push(Fill(bidTotalAmount, averagePrice));
         } else {
             // both sides are fully filled
             for (uint256 i = 0; i < asks.length; i++) {
-                FBAHeap.deleteAtIndex(ISSELL, askAm, askMm, i);
+                FBAHeap.deleteAtIndex(i, ISSELL, askAm, askMm);
             }
             for (uint256 i = 0; i < bids.length; i++) {
-                FBAHeap.deleteAtIndex(ISBUY, bidAm, bidMm, i);
+                FBAHeap.deleteAtIndex(i, ISBUY, bidAm, bidMm);
             }
             fills.push(Fill(askTotalAmount, averagePrice));
         }
