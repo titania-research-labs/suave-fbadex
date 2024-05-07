@@ -228,14 +228,8 @@ library FBAHeap {
         // Get the item we're deleting to return it
         FBAOrder memory deletedItem = getOrder(index, am);
 
-        // TODO - Are we deleting the map value here?  Or is deletion implicit?
-        // mapWrite(deletedItem.clientId, abi.encode(index), mm);
-
         // if the index is last, ...
         if (index == lastIndex) {
-            return deletedItem;
-        } else if (index == 0) {
-            heapifyDown(index, isMaxHeap, am, mm);
             return deletedItem;
         }
 
@@ -244,6 +238,11 @@ library FBAHeap {
         FBAOrder memory ord = abi.decode(ordBytes, (FBAOrder));
         arrWrite(index, ordBytes, am);
         mapWrite(ord.clientId, abi.encode(index), mm);
+
+        if (index == 0) {
+            heapifyDown(index, isMaxHeap, am, mm);
+            return deletedItem;
+        }
 
         // Need to see if we need to heapify up/down
         uint256 indexParent = (index - 1) / 2;
@@ -254,10 +253,6 @@ library FBAHeap {
         } else {
             heapifyUp(index, isMaxHeap, am, mm);
         }
-        // Think we do NOT need to pop?
-        // else {
-        //     heap.pop();
-        // }
 
         return deletedItem;
     }
@@ -342,8 +337,8 @@ library FBAHeap {
             arrWrite(index, ordLargestBytes, am);
             arrWrite(largestIndex, ordBytes, am);
             // And we need to flip map values too...
-            mapWrite(ord.clientId, abi.encode(largestIndex), mm);
             mapWrite(ordLargest.clientId, abi.encode(index), mm);
+            mapWrite(ord.clientId, abi.encode(largestIndex), mm);
 
             index = largestIndex;
         }
