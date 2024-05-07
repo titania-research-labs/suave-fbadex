@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import "suave-std/Test.sol";
 import "suave-std/suavelib/Suave.sol";
 import "forge-std/console.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 import {FBA} from "../src/FBA.sol";
 import {FBAHeap} from "../src/FBAHeap.sol";
 
@@ -18,7 +19,7 @@ contract TestForge is Test, SuaveEnabled {
     }
 
     event FillEvent(Fill);
-    event OrderPlace(uint256 price, bool side, uint256 amount);
+    event OrderPlace(uint256 price, uint256 amount, bool side);
     event OrderCancel(string orderId, bool side);
 
     function testPlaceOrder() public {
@@ -27,11 +28,11 @@ contract TestForge is Test, SuaveEnabled {
         FBA fba = new FBA();
         address(fba).call(fba.initFBA());
 
-        FBAHeap.Order memory ord = FBAHeap.Order(100, ISBUY, 123, "abcd");
+        FBAHeap.Order memory ord = FBAHeap.Order(100, 123, ISBUY, "order1");
 
         bytes memory o = fba.placeOrder(ord);
         vm.expectEmit(true, true, true, true);
-        emit OrderPlace(ord.price, ord.side, ord.amount);
+        emit OrderPlace(ord.price, ord.amount, ord.side);
         address(fba).call(o);
     }
 
@@ -41,8 +42,8 @@ contract TestForge is Test, SuaveEnabled {
         FBA fba = new FBA();
         address(fba).call(fba.initFBA());
 
-        string memory orderId = "abcd";
-        FBAHeap.Order memory ord = FBAHeap.Order(100, ISSELL, 123, orderId);
+        string memory orderId = "order1";
+        FBAHeap.Order memory ord = FBAHeap.Order(100, 123, ISSELL, orderId);
         address(fba).call(fba.placeOrder(ord));
 
         // Now confirm cancel works
@@ -52,132 +53,217 @@ contract TestForge is Test, SuaveEnabled {
         address(fba).call(o);
     }
 
-    function testMatchOrderAtSamePriceCase1() public {
+    function testMatchOrdersAtSamePriceCase1() public {
         FBA fba = new FBA();
         address(fba).call(fba.initFBA());
 
         uint256 tradePrice = 100;
-        FBAHeap.Order memory ordBuy = FBAHeap.Order(tradePrice, ISBUY, 100, "abcd");
+        FBAHeap.Order memory ordBuy = FBAHeap.Order(tradePrice, 100, ISBUY, "order1");
         address(fba).call(fba.placeOrder(ordBuy));
 
-        FBAHeap.Order memory ordSell = FBAHeap.Order(tradePrice, ISSELL, 80, "efgh");
+        FBAHeap.Order memory ordSell = FBAHeap.Order(tradePrice, 80, ISSELL, "order2");
         address(fba).call(fba.placeOrder(ordSell));
 
         bytes memory o = fba.executeFills();
-        // This should have resulted in a matching order of amount 80 at price 100
-        Fill memory f = Fill(80, 100);
+        Fill memory f = Fill(100, 80);
         vm.expectEmit(true, true, true, true);
         emit FillEvent(f);
         address(fba).call(o);
     }
 
-    function testMatchOrderAtSamePriceCase2() public {
+    function testMatchOrdersAtSamePriceCase2() public {
         FBA fba = new FBA();
         address(fba).call(fba.initFBA());
 
         uint tradePrice = 100;
         FBAHeap.Order memory ordBuy = FBAHeap.Order(
             tradePrice,
-            ISBUY,
             100,
-            "abcd"
+            ISBUY,
+            "order1"
         );
         address(fba).call(fba.placeOrder(ordBuy));
 
         FBAHeap.Order memory ordSell1 = FBAHeap.Order(
             tradePrice,
-            ISSELL,
             90,
-            "efgh"
+            ISSELL,
+            "order2"
         );
         FBAHeap.Order memory ordSell2 = FBAHeap.Order(
             tradePrice,
-            ISSELL,
             90,
-            "ijkl"
+            ISSELL,
+            "order3"
         );
         address(fba).call(fba.placeOrder(ordSell1));
         address(fba).call(fba.placeOrder(ordSell2));
 
         bytes memory o = fba.executeFills();
-        // This should have resulted in a matching order of amount 80 at price 100
         Fill memory f = Fill(100, 100);
         vm.expectEmit(true, true, true, true);
         emit FillEvent(f);
         address(fba).call(o);
     }
 
-    function testMatchOrderAtSamePriceCase3() public {
+    function testMatchOrdersAtSamePriceCase3() public {
         FBA fba = new FBA();
         address(fba).call(fba.initFBA());
 
         uint tradePrice = 100;
         FBAHeap.Order memory ordBuy1 = FBAHeap.Order(
             tradePrice,
-            ISBUY,
             90,
-            "abcd"
+            ISBUY,
+            "order1"
         );
         FBAHeap.Order memory ordBuy2 = FBAHeap.Order(
             tradePrice,
-            ISBUY,
             90,
-            "efgh"
+            ISBUY,
+            "order2"
         );
         address(fba).call(fba.placeOrder(ordBuy1));
         address(fba).call(fba.placeOrder(ordBuy2));
 
         FBAHeap.Order memory ordSell = FBAHeap.Order(
             tradePrice,
-            ISSELL,
             50000,
-            "ijkl"
+            ISSELL,
+            "order3"
         );
         address(fba).call(fba.placeOrder(ordSell));
 
         bytes memory o = fba.executeFills();
-        // This should have resulted in a matching order of amount 80 at price 100
-        Fill memory f = Fill(180, 100);
+        Fill memory f = Fill(100, 180);
         vm.expectEmit(true, true, true, true);
         emit FillEvent(f);
         address(fba).call(o);
     }
 
-    function testMatchOrderAtDifferentPriceCase1() public {
+    function testMatchOrdersAtSamePriceCase4() public {
         FBA fba = new FBA();
         address(fba).call(fba.initFBA());
 
-        FBAHeap.Order memory ordBuy = FBAHeap.Order(101, ISBUY, 100, "abcd");
-        address(fba).call(fba.placeOrder(ordBuy));
+        uint tradePrice = 100;
+        for (uint256 i = 0; i < 100; i++) {
+            FBAHeap.Order memory ordBuy = FBAHeap.Order(
+                tradePrice,
+                (i + 1), // total amount is 5050
+                ISBUY,
+                string.concat("order", Strings.toString(i + 1))
+            );
+            address(fba).call(fba.placeOrder(ordBuy));
+        }
 
-        FBAHeap.Order memory ordSell = FBAHeap.Order(99, ISSELL, 80, "efgh");
+        FBAHeap.Order memory ordSell = FBAHeap.Order(
+            tradePrice,
+            10000,
+            ISSELL,
+            "order2"
+        );
         address(fba).call(fba.placeOrder(ordSell));
 
         bytes memory o = fba.executeFills();
-        // This should have resulted in a matching order of amount 80 at price 100
-        Fill memory f = Fill(80, 100);
+        Fill memory f = Fill(100, 5050);
         vm.expectEmit(true, true, true, true);
         emit FillEvent(f);
         address(fba).call(o);
     }
 
-    function testMatchOrderWithCancel() public {
+    function testMatchOrdersAtDifferentPriceCase1() public {
+        FBA fba = new FBA();
+        address(fba).call(fba.initFBA());
+
+        FBAHeap.Order memory ordBuy = FBAHeap.Order(101, 100, ISBUY, "order1");
+        address(fba).call(fba.placeOrder(ordBuy));
+
+        FBAHeap.Order memory ordSell = FBAHeap.Order(99, 80, ISSELL, "order2");
+        address(fba).call(fba.placeOrder(ordSell));
+
+        bytes memory o = fba.executeFills();
+        Fill memory f = Fill(100, 80);
+        vm.expectEmit(true, true, true, true);
+        emit FillEvent(f);
+        address(fba).call(o);
+    }
+
+    function testMatchOrdersAtDifferentPriceCase2() public {
+        FBA fba = new FBA();
+        address(fba).call(fba.initFBA());
+
+        FBAHeap.Order memory ordBuy1 = FBAHeap.Order(95, 100, ISBUY, "order1");
+        FBAHeap.Order memory ordBuy2 = FBAHeap.Order(120, 100, ISBUY, "order2");
+        address(fba).call(fba.placeOrder(ordBuy1));
+        address(fba).call(fba.placeOrder(ordBuy2));
+
+        FBAHeap.Order memory ordSell1 = FBAHeap.Order(95, 100, ISSELL, "order3");
+        FBAHeap.Order memory ordSell2 = FBAHeap.Order(90, 100, ISSELL, "order4");
+        address(fba).call(fba.placeOrder(ordSell1));
+        address(fba).call(fba.placeOrder(ordSell2));
+
+        bytes memory o = fba.executeFills();
+        Fill memory f1 = Fill(95, 100);
+        vm.expectEmit(true, true, true, true);
+        emit FillEvent(f1);
+        Fill memory f2 = Fill(105, 100);
+        vm.expectEmit(true, true, true, true);
+        emit FillEvent(f2);
+        address(fba).call(o);
+    }
+
+    function testMatchOrdersWithCancelCase1() public {
         FBA fba = new FBA();
         address(fba).call(fba.initFBA());
 
         uint256 tradePrice = 100;
-        FBAHeap.Order memory ordBuy1 = FBAHeap.Order(tradePrice, ISBUY, 100, "abcd");
-        FBAHeap.Order memory ordBuy2 = FBAHeap.Order(tradePrice, ISBUY, 50, "efgh");
+        FBAHeap.Order memory ordBuy1 = FBAHeap.Order(tradePrice, 20, ISBUY, "order1");
+        FBAHeap.Order memory ordBuy2 = FBAHeap.Order(tradePrice, 50, ISBUY, "order2");
         address(fba).call(fba.placeOrder(ordBuy1));
         address(fba).call(fba.placeOrder(ordBuy2));
-        FBAHeap.Order memory ordSell = FBAHeap.Order(tradePrice, ISSELL, 80, "ijkl");
+        FBAHeap.Order memory ordSell = FBAHeap.Order(tradePrice, 80, ISSELL, "order3");
         address(fba).call(fba.placeOrder(ordSell));
 
-        address(fba).call(fba.cancelOrder("efgh", ISBUY));
+        address(fba).call(fba.cancelOrder(ordBuy2.orderId, ISBUY));
 
         bytes memory o = fba.executeFills();
-        // This should have resulted in a matching order of amount 80 at price 100
-        Fill memory f = Fill(80, 100);
+        // if order isn't cancelled, this should be `Fill(100, 70)`
+        Fill memory f = Fill(100, 20);
+        vm.expectEmit(true, true, true, true);
+        emit FillEvent(f);
+        address(fba).call(o);
+    }
+
+    function testMatchOrdersWithCancelCase2() public {
+        FBA fba = new FBA();
+        address(fba).call(fba.initFBA());
+
+        uint tradePrice = 100;
+        for (uint256 i = 0; i < 100; i++) {
+            FBAHeap.Order memory ordBuy = FBAHeap.Order(
+                tradePrice,
+                (i + 1), // total amount is 5050
+                ISBUY,
+                string.concat("order", Strings.toString(i + 1))
+            );
+            address(fba).call(fba.placeOrder(ordBuy));
+        }
+
+        for (uint256 i = 0; i < 50; i++) {
+            address(fba).call(fba.cancelOrder(string.concat("order", Strings.toString(i + 1)), ISBUY)); // cancel total amount is 1275
+        }
+
+        FBAHeap.Order memory ordSell = FBAHeap.Order(
+            tradePrice,
+            10000,
+            ISSELL,
+            "order2"
+        );
+        address(fba).call(fba.placeOrder(ordSell));
+
+        bytes memory o = fba.executeFills();
+        // if order isn't cancelled, this should be `Fill(100, 5050)`
+        Fill memory f = Fill(100, 3775); // 5050 - 1275
         vm.expectEmit(true, true, true, true);
         emit FillEvent(f);
         address(fba).call(o);

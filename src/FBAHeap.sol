@@ -14,9 +14,9 @@ library FBAHeap {
     // Currently all orders are GTC limit orders
     struct Order {
         uint256 price;
+        uint256 amount;
         // 'true' for bids and 'false' for asks
         bool side;
-        uint256 amount;
         string orderId;
     }
 
@@ -50,6 +50,17 @@ library FBAHeap {
     }
 
     /**
+     * @notice Overwrites data for a specified order
+     */
+    function updateOrder(Order memory ord, ArrayMetadata memory am, MapMetadata memory mm) internal {
+        // Index will remain the same so we don't need to update our map here
+        bytes memory indexBytes = mapGet(ord.orderId, mm);
+        uint256 index = abi.decode(indexBytes, (uint256));
+        bytes memory val = abi.encode(ord);
+        arrWrite(index, val, am);
+    }
+
+    /**
      * @notice To delete we will find the index of the order and then overwrite at that index
      */
     function deleteOrder(string memory orderId, bool isMaxHeap, ArrayMetadata memory am, MapMetadata memory mm)
@@ -63,15 +74,24 @@ library FBAHeap {
     }
 
     /**
+     * @notice Returns order at specified index
+     */
+    function getOrder(uint256 index, ArrayMetadata memory am) internal returns (Order memory) {
+        bytes memory ordBytes = arrGet(index, am);
+        Order memory ord = abi.decode(ordBytes, (Order));
+        return ord;
+    }
+
+    /**
      * @notice Returns best bid/ask if exists, otherwise creates an element with extreme price
      */
-    function getTopOrder(ArrayMetadata memory am, bool fallbackSide, uint256 fallbackPrice)
+    function getTopOrder(ArrayMetadata memory am, bool fallbackSide)
         internal
         returns (Order memory)
     {
         // So if heap is empty create a new struct with the fallback values
         if (am.length == 0) {
-            return Order(fallbackPrice, fallbackSide, 0, "");
+            return fetchExtremeOrder(fallbackSide);
         }
 
         Order memory ord = getOrder(0, am);
@@ -81,14 +101,14 @@ library FBAHeap {
     /**
      * @notice Returns all bids/asks above or below a threshold
      */
-    function getTopOrderList(uint256 threshold, bool side, ArrayMetadata memory am, uint256 fallbackPrice)
+    function getTopOrderList(uint256 threshold, bool side, ArrayMetadata memory am)
         internal
         returns (Order[] memory)
     {
         // So if heap is empty create a new struct with the fallback values
         if (am.length == 0) {
             Order[] memory fallbackOrders = new Order[](1);
-            fallbackOrders[0] = Order(fallbackPrice, side, 0, "");
+            fallbackOrders[0] = fetchExtremeOrder(side);
             return fallbackOrders;
         }
 
@@ -116,20 +136,14 @@ library FBAHeap {
     }
 
     /**
-     * @notice Overwrites data for a specified order
+     * @notice Returns all bids/asks above or below a threshold
      */
-    function updateOrder(Order memory ord, ArrayMetadata memory am, MapMetadata memory mm) internal {
-        // Index will remain the same so we don't need to update our map here
-        bytes memory indexBytes = mapGet(ord.orderId, mm);
-        uint256 index = abi.decode(indexBytes, (uint256));
-        bytes memory val = abi.encode(ord);
-        arrWrite(index, val, am);
-    }
-
-    function getOrder(uint256 index, ArrayMetadata memory am) internal returns (Order memory) {
-        bytes memory ordBytes = arrGet(index, am);
-        Order memory ord = abi.decode(ordBytes, (Order));
-        return ord;
+    function fetchExtremeOrder(bool side) internal pure returns (Order memory) {
+        if (side == true) {
+            return Order(0, 0, side, "");
+        } else {
+            return Order(type(uint256).max, 0, side, "");
+        }
     }
 
     //////////// Map methods
@@ -346,6 +360,9 @@ library FBAHeap {
         }
     }
 
+    /**
+     * @notice Compares two uint256 values based on whether it's a max or min heap
+     */
     function isFirstLarger(uint256 first, uint256 second, bool isMaxHeap)
         internal
         pure

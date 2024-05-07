@@ -9,7 +9,7 @@ import {FBAHeap} from "../src/FBAHeap.sol";
 contract FBA {
     bool ISBUY = true;
     bool ISSELL = false;
-    uint256 SAMEPRICEMAXORDS = 10; // TODO: optimize this value
+    uint256 SAMEPRICEMAXORDS = 1000;
 
     address[] addressList;
 
@@ -26,8 +26,8 @@ contract FBA {
     Cancel[] public cancels;
 
     struct Fill {
-        uint256 amount;
         uint256 price;
+        uint256 amount;
     }
 
     struct Cancel {
@@ -47,7 +47,7 @@ contract FBA {
     }
 
     event FillEvent(Fill);
-    event OrderPlace(uint256 price, bool side, uint256 amount);
+    event OrderPlace(uint256 price, uint256 amount, bool side);
     event OrderCancel(string orderId, bool side);
 
     constructor() {
@@ -153,16 +153,14 @@ contract FBA {
         cancels = new Cancel[](0);
 
         //////////// Second part: match orders with the same price
-        uint256 bidFallbackPrice = 0;
-        uint256 askFallbackPrice = type(uint256).max;
-        FBAHeap.Order memory bestBid = FBAHeap.getTopOrder(bidAm, ISBUY, bidFallbackPrice);
+        FBAHeap.Order memory bestBid = FBAHeap.getTopOrder(bidAm, ISBUY);
         // asks and bids are the orders that will be possibly matched
-        FBAHeap.Order[] memory asks = FBAHeap.getTopOrderList(bestBid.price, ISSELL, askAm, askFallbackPrice);
+        FBAHeap.Order[] memory asks = FBAHeap.getTopOrderList(bestBid.price, ISSELL, askAm);
         if (asks.length == 0) {
             return abi.encodeWithSelector(this.executeFillsCallback.selector, fills);
         }
 
-        FBAHeap.Order[] memory bids = FBAHeap.getTopOrderList(asks[0].price, ISBUY, bidAm, bidFallbackPrice);
+        FBAHeap.Order[] memory bids = FBAHeap.getTopOrderList(asks[0].price, ISBUY, bidAm);
         if (bids.length == 0) {
             return abi.encodeWithSelector(this.executeFillsCallback.selector, fills);
         }
@@ -183,7 +181,7 @@ contract FBA {
                 continue;
             }
 
-            // get all order indices with the same price
+            // get orders with the same price
             (bids_, nBids, bidTotalAmount) = getPriceOrdersWithStats(bids, price);
             (asks_, nAsks, askTotalAmount) = getPriceOrdersWithStats(asks, price);
 
@@ -201,7 +199,7 @@ contract FBA {
                     order.amount -= fillRatio * order.amount;
                     FBAHeap.updateOrder(order, bidAm, bidMm);
                 }
-                fills.push(Fill(askTotalAmount, price));
+                fills.push(Fill(price, askTotalAmount));
             } else if (bidTotalAmount < askTotalAmount) {
                 // bid side is fully filled
                 // bid side that has less amount
@@ -215,7 +213,7 @@ contract FBA {
                     order.amount -= fillRatio * order.amount;
                     FBAHeap.updateOrder(order, askAm, askMm);
                 }
-                fills.push(Fill(bidTotalAmount, price));
+                fills.push(Fill(price, bidTotalAmount));
             } else {
                 // both sides are fully filled
                 for (uint256 j = 0; j < nAsks; j++) {
@@ -224,7 +222,7 @@ contract FBA {
                 for (uint256 j = 0; j < nBids; j++) {
                     FBAHeap.deleteOrder(bids_[j].orderId, ISBUY, bidAm, bidMm);
                 }
-                fills.push(Fill(askTotalAmount, price));
+                fills.push(Fill(price, askTotalAmount));
             }
 
             previousPrice = price;
@@ -232,12 +230,12 @@ contract FBA {
 
         //////////// Third part: match orders with different prices
         // take bids and asks again
-        bestBid = FBAHeap.getTopOrder(bidAm, ISBUY, bidFallbackPrice);
-        asks = FBAHeap.getTopOrderList(bestBid.price, ISSELL, askAm, askFallbackPrice);
+        bestBid = FBAHeap.getTopOrder(bidAm, ISBUY);
+        asks = FBAHeap.getTopOrderList(bestBid.price, ISSELL, askAm);
         if (asks.length == 0) {
             return abi.encodeWithSelector(this.executeFillsCallback.selector, fills);
         }
-        bids = FBAHeap.getTopOrderList(asks[0].price, ISBUY, bidAm, bidFallbackPrice);
+        bids = FBAHeap.getTopOrderList(asks[0].price, ISBUY, bidAm);
         if (bids.length == 0) {
             return abi.encodeWithSelector(this.executeFillsCallback.selector, fills);
         }
@@ -284,7 +282,7 @@ contract FBA {
                 order.amount -= fillRatio * order.amount;
                 FBAHeap.updateOrder(order, bidAm, bidMm);
             }
-            fills.push(Fill(askTotalAmount, averagePrice));
+            fills.push(Fill(averagePrice, askTotalAmount));
         } else if (bidTotalAmount < askTotalAmount) {
             // bid side is fully filled
             // bid side that has less amount
@@ -298,7 +296,7 @@ contract FBA {
                 order.amount -= fillRatio * order.amount;
                 FBAHeap.updateOrder(order, askAm, askMm);
             }
-            fills.push(Fill(bidTotalAmount, averagePrice));
+            fills.push(Fill(averagePrice, bidTotalAmount));
         } else {
             // both sides are fully filled
             for (uint256 i = 0; i < asks.length; i++) {
@@ -307,7 +305,7 @@ contract FBA {
             for (uint256 i = 0; i < bids.length; i++) {
                 FBAHeap.deleteAtIndex(i, ISBUY, bidAm, bidMm);
             }
-            fills.push(Fill(askTotalAmount, averagePrice));
+            fills.push(Fill(averagePrice, askTotalAmount));
         }
 
         return abi.encodeWithSelector(this.executeFillsCallback.selector, fills);
@@ -332,7 +330,7 @@ contract FBA {
     }
 
     function placeOrderCallback(PlaceResult memory result) public payable {
-        emit OrderPlace(result.price, result.side, result.amount);
+        emit OrderPlace(result.price, result.amount, result.side);
     }
 
     function cancelOrderCallback(CancelResult memory result) public payable {
