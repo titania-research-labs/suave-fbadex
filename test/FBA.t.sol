@@ -71,42 +71,42 @@ contract TestForge is Test, SuaveEnabled {
         address(fba).call(o);
     }
 
-    // // TODO: this test is failing because of arithmetic overflow or underflow
-    // function testMatchOrderAtSamePriceCase2() public {
-    //     FBA fba = new FBA();
-    //     address(fba).call(fba.initFBA());
+    function testMatchOrderAtSamePriceCase2() public {
+        FBA fba = new FBA();
+        address(fba).call(fba.initFBA());
 
-    //     uint tradePrice = 100;
-    //     FBAHeap.FBAOrder memory ordBuy = FBAHeap.FBAOrder(
-    //         tradePrice,
-    //         ISBUY,
-    //         100,
-    //         "abcd"
-    //     );
-    //     address(fba).call(fba.placeOrder(ordBuy));
+        uint tradePrice = 100;
+        FBAHeap.FBAOrder memory ordBuy = FBAHeap.FBAOrder(
+            tradePrice,
+            ISBUY,
+            100,
+            "abcd"
+        );
+        address(fba).call(fba.placeOrder(ordBuy));
 
-    //     FBAHeap.FBAOrder memory ordSell1 = FBAHeap.FBAOrder(
-    //         tradePrice,
-    //         ISSELL,
-    //         80,
-    //         "defg"
-    //     );
-    //     address(fba).call(fba.placeOrder(ordSell1));
-    //     FBAHeap.FBAOrder memory ordSell2 = FBAHeap.FBAOrder(
-    //         tradePrice,
-    //         ISSELL,
-    //         60,
-    //         "defg"
-    //     );
-    //     address(fba).call(fba.placeOrder(ordSell2));
+        FBAHeap.FBAOrder memory ordSell1 = FBAHeap.FBAOrder(
+            tradePrice,
+            ISSELL,
+            90,
+            "efgh"
+        );
+        FBAHeap.FBAOrder memory ordSell2 = FBAHeap.FBAOrder(
+            tradePrice,
+            ISSELL,
+            90,
+            "ijkl"
+        );
+        address(fba).call(fba.placeOrder(ordSell1));
+        address(fba).call(fba.placeOrder(ordSell2));
 
-    //     bytes memory o = fba.executeFills();
-    //     // This should have resulted in a matching order of amount 80 at price 100
-    //     Fill memory f = Fill(80, 100);
-    //     vm.expectEmit(true, true, true, true);
-    //     emit FillEvent(f);
-    //     address(fba).call(o);
-    // }
+        bytes memory o = fba.executeFills();
+        // This should have resulted in a matching order of amount 80 at price 100
+        Fill memory f = Fill(100, 100);
+        vm.expectEmit(true, true, true, true);
+        emit FillEvent(f);
+        address(fba).call(o);
+    }
+
 
     function testMatchOrderAtDifferentPriceCase1() public {
         FBA fba = new FBA();

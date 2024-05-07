@@ -124,16 +124,12 @@ contract FBA {
         returns (uint256[] memory indices, uint256 nOrds, uint256 totalAmount)
     {
         indices = new uint256[](SAMEPRICEMAXORDS);
-        for (uint256 j = 0; j < ords.length; j++) {
+        for (uint256 j = 0; j < ords.length && nOrds < SAMEPRICEMAXORDS; j++) {
             if (ords[j].price == price) {
                 indices[nOrds] = j;
                 totalAmount += ords[j].amount;
                 nOrds++;
-
-                if (nOrds == SAMEPRICEMAXORDS) {
-                    break;
-                }
-            }
+            } 
         }
     }
 
@@ -163,7 +159,14 @@ contract FBA {
         FBAHeap.FBAOrder memory bestBid = FBAHeap.getTopOrder(bidAm, ISBUY, bidFallbackPrice);
         // asks and bids are the orders that will be possibly matched
         FBAHeap.FBAOrder[] memory asks = FBAHeap.getTopOrderList(bestBid.price, ISSELL, askAm, askFallbackPrice);
+        if (asks.length == 0) {
+            return abi.encodeWithSelector(this.executeFillsCallback.selector, fills);
+        }
+
         FBAHeap.FBAOrder[] memory bids = FBAHeap.getTopOrderList(asks[0].price, ISBUY, bidAm, bidFallbackPrice);
+        if (bids.length == 0) {
+            return abi.encodeWithSelector(this.executeFillsCallback.selector, fills);
+        }
 
         uint256 previousPrice = 0;
         for (uint256 i = 0; i < asks.length; i++) {
@@ -226,10 +229,11 @@ contract FBA {
         // take bids and asks again
         bestBid = FBAHeap.getTopOrder(bidAm, ISBUY, bidFallbackPrice);
         asks = FBAHeap.getTopOrderList(bestBid.price, ISSELL, askAm, askFallbackPrice);
+        if (asks.length == 0) {
+            return abi.encodeWithSelector(this.executeFillsCallback.selector, fills);
+        }
         bids = FBAHeap.getTopOrderList(asks[0].price, ISBUY, bidAm, bidFallbackPrice);
-
-        // if there is no order in either side (in other words, no excess of demand and supply), finish the function
-        if (bids.length == 0 || asks.length == 0) {
+        if (bids.length == 0) {
             return abi.encodeWithSelector(this.executeFillsCallback.selector, fills);
         }
 
