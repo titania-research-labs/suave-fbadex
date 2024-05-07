@@ -12,12 +12,12 @@ library FBAHeap {
     // enum Side {BID, ASK}
 
     // Currently all orders are GTC limit orders
-    struct FBAOrder {
+    struct Order {
         uint256 price;
         // 'true' for bids and 'false' for asks
         bool side;
         uint256 amount;
-        string clientId;
+        string orderId;
     }
 
     // map will track the indices of the orders
@@ -32,7 +32,7 @@ library FBAHeap {
     }
 
     //////////// Helper functions specific to FBA
-    function insertOrder(FBAOrder memory ord, ArrayMetadata memory am, MapMetadata memory mm) internal {
+    function insertOrder(Order memory ord, ArrayMetadata memory am, MapMetadata memory mm) internal {
         // If side is 'true' it's bid side, and we have a max heap, otherwise asks and min heap
         bool isMaxHeap = ord.side;
 
@@ -41,10 +41,10 @@ library FBAHeap {
         // Append AND set index
         uint256 arrLen = arrAppend(val, am);
 
-        // Want our map to be from clientId to array index
+        // Want our map to be from orderId to array index
         // Want to store the index here, not arrLen, so subtract 1
         bytes memory val2 = abi.encode(arrLen - 1);
-        mapWrite(ord.clientId, val2, mm);
+        mapWrite(ord.orderId, val2, mm);
 
         heapifyUp(arrLen - 1, isMaxHeap, am, mm);
     }
@@ -52,13 +52,13 @@ library FBAHeap {
     /**
      * @notice To delete we will find the index of the order and then overwrite at that index
      */
-    function deleteOrder(string memory clientId, bool isMaxHeap, ArrayMetadata memory am, MapMetadata memory mm)
+    function deleteOrder(string memory orderId, bool isMaxHeap, ArrayMetadata memory am, MapMetadata memory mm)
         internal
-        returns (FBAOrder memory)
+        returns (Order memory)
     {
-        bytes memory indexBytes = mapGet(clientId, mm);
+        bytes memory indexBytes = mapGet(orderId, mm);
         uint256 index = abi.decode(indexBytes, (uint256));
-        FBAOrder memory ord = deleteAtIndex(index, isMaxHeap, am, mm);
+        Order memory ord = deleteAtIndex(index, isMaxHeap, am, mm);
         return ord;
     }
 
@@ -67,14 +67,14 @@ library FBAHeap {
      */
     function getTopOrder(ArrayMetadata memory am, bool fallbackSide, uint256 fallbackPrice)
         internal
-        returns (FBAOrder memory)
+        returns (Order memory)
     {
         // So if heap is empty create a new struct with the fallback values
         if (am.length == 0) {
-            return FBAOrder(fallbackPrice, fallbackSide, 0, "");
+            return Order(fallbackPrice, fallbackSide, 0, "");
         }
 
-        FBAOrder memory ord = getOrder(0, am);
+        Order memory ord = getOrder(0, am);
         return ord;
     }
 
@@ -83,29 +83,29 @@ library FBAHeap {
      */
     function getTopOrderList(uint256 threshold, bool side, ArrayMetadata memory am, uint256 fallbackPrice)
         internal
-        returns (FBAOrder[] memory)
+        returns (Order[] memory)
     {
         // So if heap is empty create a new struct with the fallback values
         if (am.length == 0) {
-            FBAOrder[] memory fallbackOrders = new FBAOrder[](1);
-            fallbackOrders[0] = FBAOrder(fallbackPrice, side, 0, "");
+            Order[] memory fallbackOrders = new Order[](1);
+            fallbackOrders[0] = Order(fallbackPrice, side, 0, "");
             return fallbackOrders;
         }
 
         // Count the number of orders above the threshold
         uint256 count = 0;
         for (uint256 i = 0; i < am.length; i++) {
-            FBAOrder memory ord = getOrder(i, am);
+            Order memory ord = getOrder(i, am);
             if (isFirstLarger(ord.price, threshold, side)) {
                 count++;
             }
         }
 
         // Create an array to store the orders above the threshold
-        FBAOrder[] memory orders = new FBAOrder[](count);
+        Order[] memory orders = new Order[](count);
         uint256 index = 0;
         for (uint256 i = 0; i < am.length; i++) {
-            FBAOrder memory ord = getOrder(i, am);
+            Order memory ord = getOrder(i, am);
             if (isFirstLarger(ord.price, threshold, side)) {
                 orders[index] = ord;
                 index++;
@@ -118,15 +118,17 @@ library FBAHeap {
     /**
      * @notice Overwrites data for a specified order
      */
-    function updateOrder(FBAOrder memory ord, uint256 index, ArrayMetadata memory am) internal {
+    function updateOrder(Order memory ord, ArrayMetadata memory am, MapMetadata memory mm) internal {
         // Index will remain the same so we don't need to update our map here
+        bytes memory indexBytes = mapGet(ord.orderId, mm);
+        uint256 index = abi.decode(indexBytes, (uint256));
         bytes memory val = abi.encode(ord);
         arrWrite(index, val, am);
     }
 
-    function getOrder(uint256 index, ArrayMetadata memory am) internal returns (FBAOrder memory) {
+    function getOrder(uint256 index, ArrayMetadata memory am) internal returns (Order memory) {
         bytes memory ordBytes = arrGet(index, am);
-        FBAOrder memory ord = abi.decode(ordBytes, (FBAOrder));
+        Order memory ord = abi.decode(ordBytes, (Order));
         return ord;
     }
 
@@ -216,7 +218,7 @@ library FBAHeap {
      */
     function deleteAtIndex(uint256 index, bool isMaxHeap, ArrayMetadata memory am, MapMetadata memory mm)
         internal
-        returns (FBAOrder memory)
+        returns (Order memory)
     {
         require(index < am.length, "Index out of bounds");
         uint256 lastIndex = am.length - 1;
@@ -226,7 +228,7 @@ library FBAHeap {
         arrSetMetadata(am);
 
         // Get the item we're deleting to return it
-        FBAOrder memory deletedItem = getOrder(index, am);
+        Order memory deletedItem = getOrder(index, am);
 
         // if the index is last, ...
         if (index == lastIndex) {
@@ -235,9 +237,9 @@ library FBAHeap {
 
         // Copy final value to current index...
         bytes memory ordBytes = arrGet(lastIndex, am);
-        FBAOrder memory ord = abi.decode(ordBytes, (FBAOrder));
+        Order memory ord = abi.decode(ordBytes, (Order));
         arrWrite(index, ordBytes, am);
-        mapWrite(ord.clientId, abi.encode(index), mm);
+        mapWrite(ord.orderId, abi.encode(index), mm);
 
         if (index == 0) {
             heapifyDown(index, isMaxHeap, am, mm);
@@ -246,7 +248,7 @@ library FBAHeap {
 
         // Need to see if we need to heapify up/down
         uint256 indexParent = (index - 1) / 2;
-        FBAOrder memory ordParent = getOrder(indexParent, am);
+        Order memory ordParent = getOrder(indexParent, am);
 
         if (isFirstLarger(ordParent.price, ord.price, isMaxHeap)) {
             heapifyDown(index, isMaxHeap, am, mm);
@@ -268,8 +270,8 @@ library FBAHeap {
             bytes memory ordBytes = arrGet(index, am);
             bytes memory ordParentBytes = arrGet(indexParent, am);
             // need to decode values
-            FBAOrder memory ord = abi.decode(ordBytes, (FBAOrder));
-            FBAOrder memory ordParent = abi.decode(ordParentBytes, (FBAOrder));
+            Order memory ord = abi.decode(ordBytes, (Order));
+            Order memory ordParent = abi.decode(ordParentBytes, (Order));
 
             if (isFirstLarger(ordParent.price, ord.price, isMaxHeap)) {
                 break;
@@ -279,8 +281,8 @@ library FBAHeap {
             arrWrite(index, ordParentBytes, am);
             arrWrite(indexParent, ordBytes, am);
             // And we need to flip map values too...
-            mapWrite(ord.clientId, abi.encode(indexParent), mm);
-            mapWrite(ordParent.clientId, abi.encode(index), mm);
+            mapWrite(ord.orderId, abi.encode(indexParent), mm);
+            mapWrite(ordParent.orderId, abi.encode(index), mm);
 
             index = indexParent;
         }
@@ -296,10 +298,10 @@ library FBAHeap {
         uint256 lastIndex = am.length - 1;
 
         bytes memory ordBytes = arrGet(index, am);
-        FBAOrder memory ord = abi.decode(ordBytes, (FBAOrder));
+        Order memory ord = abi.decode(ordBytes, (Order));
 
         bytes memory ordLargestBytes = ordBytes;
-        FBAOrder memory ordLargest = ord;
+        Order memory ordLargest = ord;
 
         while (true) {
             leftChildIndex = index * 2 + 1;
@@ -308,7 +310,7 @@ library FBAHeap {
 
             if (leftChildIndex <= lastIndex) {
                 bytes memory ordChildBytes = arrGet(leftChildIndex, am);
-                FBAOrder memory ordChild = abi.decode(ordChildBytes, (FBAOrder));
+                Order memory ordChild = abi.decode(ordChildBytes, (Order));
 
                 // Again sorting based on min/max heap
                 if (isFirstLarger(ordChild.price, ordLargest.price, isMaxHeap)) {
@@ -320,7 +322,7 @@ library FBAHeap {
 
             if (rightChildIndex <= lastIndex) {
                 bytes memory ordChildBytes = arrGet(rightChildIndex, am);
-                FBAOrder memory ordChild = abi.decode(ordChildBytes, (FBAOrder));
+                Order memory ordChild = abi.decode(ordChildBytes, (Order));
                 if (isFirstLarger(ordChild.price, ordLargest.price, isMaxHeap)) {
                     ordLargestBytes = ordChildBytes;
                     ordLargest = ordChild;
@@ -337,8 +339,8 @@ library FBAHeap {
             arrWrite(index, ordLargestBytes, am);
             arrWrite(largestIndex, ordBytes, am);
             // And we need to flip map values too...
-            mapWrite(ordLargest.clientId, abi.encode(index), mm);
-            mapWrite(ord.clientId, abi.encode(largestIndex), mm);
+            mapWrite(ordLargest.orderId, abi.encode(index), mm);
+            mapWrite(ord.orderId, abi.encode(largestIndex), mm);
 
             index = largestIndex;
         }
