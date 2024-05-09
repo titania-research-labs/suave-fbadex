@@ -31,7 +31,7 @@ library FBAHeap {
         Suave.DataId ref;
     }
 
-    //////////// Helper functions specific to FBA
+    //////////// Helper methods specific to FBA
     function insertOrder(Order memory ord, ArrayMetadata memory am, MapMetadata memory mm) internal {
         // If side is 'true' it's bid side, and we have a max heap, otherwise asks and min heap
         bool isMaxHeap = ord.side;
@@ -85,13 +85,16 @@ library FBAHeap {
     /**
      * @notice Returns best bid/ask if exists, otherwise creates an element with extreme price
      */
-    function getTopOrder(ArrayMetadata memory am, bool fallbackSide)
-        internal
-        returns (Order memory)
-    {
+    function getTopOrder(ArrayMetadata memory am, bool fallbackSide) internal returns (Order memory) {
         // So if heap is empty create a new struct with the fallback values
         if (am.length == 0) {
-            return fetchExtremeOrder(fallbackSide);
+            uint256 fallbackPrice;
+            if (fallbackSide == true) {
+                fallbackPrice = 0;
+            } else {
+                fallbackPrice = type(uint256).max;
+            }
+            return Order(fallbackPrice, 0, fallbackSide, "");
         }
 
         Order memory ord = getOrder(0, am);
@@ -101,17 +104,7 @@ library FBAHeap {
     /**
      * @notice Returns all bids/asks above or below a threshold
      */
-    function getTopOrderList(uint256 threshold, bool side, ArrayMetadata memory am)
-        internal
-        returns (Order[] memory)
-    {
-        // So if heap is empty create a new struct with the fallback values
-        if (am.length == 0) {
-            Order[] memory fallbackOrders = new Order[](1);
-            fallbackOrders[0] = fetchExtremeOrder(side);
-            return fallbackOrders;
-        }
-
+    function getTopOrderList(uint256 threshold, bool side, ArrayMetadata memory am) internal returns (Order[] memory) {
         // Count the number of orders above the threshold
         uint256 count = 0;
         for (uint256 i = 0; i < am.length; i++) {
@@ -133,17 +126,6 @@ library FBAHeap {
         }
 
         return orders;
-    }
-
-    /**
-     * @notice Returns all bids/asks above or below a threshold
-     */
-    function fetchExtremeOrder(bool side) internal pure returns (Order memory) {
-        if (side == true) {
-            return Order(0, 0, side, "");
-        } else {
-            return Order(type(uint256).max, 0, side, "");
-        }
     }
 
     //////////// Map methods
@@ -360,14 +342,11 @@ library FBAHeap {
         }
     }
 
+    //////////// Helper methods
     /**
      * @notice Compares two uint256 values based on whether it's a max or min heap
      */
-    function isFirstLarger(uint256 first, uint256 second, bool isMaxHeap)
-        internal
-        pure
-        returns (bool)
-    {
+    function isFirstLarger(uint256 first, uint256 second, bool isMaxHeap) internal pure returns (bool) {
         if (isMaxHeap) {
             return first >= second;
         } else {
