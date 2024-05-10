@@ -16,5 +16,5 @@ int_types = "long"
 sort_imports = true
 quote_style = "double"
 
-[docs]
+[doc]
 out = "docs"
