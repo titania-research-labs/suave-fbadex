@@ -29,3 +29,9 @@ $ forge test --ffi
 ```shell
 $ forge fmt
 ```
+
+### Read the Docs
+
+```shell
+$ forge doc --serve --port 4000
+```

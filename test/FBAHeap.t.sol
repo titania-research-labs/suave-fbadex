@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
+import {FBAHeap} from "../src/FBAHeap.sol";
 import "forge-std/Test.sol";
+import "forge-std/console.sol";
 import "suave-std/Test.sol";
 import "suave-std/suavelib/Suave.sol";
-import "forge-std/console.sol";
-import {FBAHeap} from "../src/FBAHeap.sol";
 
 contract TestForge is Test, SuaveEnabled {
     function deployHeap() internal returns (FBAHeap.ArrayMetadata memory am, FBAHeap.MapMetadata memory mm) {

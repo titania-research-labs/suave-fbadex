@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-import "suave-std/suavelib/Suave.sol";
-import "forge-std/console.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
 import {FBAHeap} from "../src/FBAHeap.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+import "forge-std/console.sol";
+import "suave-std/suavelib/Suave.sol";
 
 contract FBA {
     bool ISBUY = true;

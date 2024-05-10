@@ -5,3 +5,16 @@ libs = ["lib"]
 via_ir = true
 optimizer = true
 optimizer_runs = 200
+ignored_error_codes = [9302]
+
+[fmt]
+single_line_statement_blocks = "multi"
+multiline_func_header = "attributes_first"
+line_length = 120
+tab_width = 4
+int_types = "long"
+sort_imports = true
+quote_style = "double"
+
+[docs]
+out = "docs"
