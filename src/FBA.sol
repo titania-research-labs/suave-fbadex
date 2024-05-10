@@ -18,8 +18,9 @@ contract FBA {
     Suave.DataId public bidArrayRef;
     Suave.DataId public bidMapRef;
 
-    Fill[] public fills;
-    Cancel[] public cancels;
+    // Fills and cancels
+    Fill[] public fills; // This array length will be reset to 0 at the beginning of each `executeFills`
+    Cancel[] public cancels; // This array length will be reset to 0 at the end of each cancel operation in `executeFills`
 
     struct Fill {
         uint256 price;
@@ -124,6 +125,9 @@ contract FBA {
         FBAHeap.MapMetadata memory bidMm = FBAHeap.mapGetMetadata(bidMapRef);
         FBAHeap.ArrayMetadata memory askAm = FBAHeap.arrGetMetadata(askArrayRef);
         FBAHeap.MapMetadata memory askMm = FBAHeap.mapGetMetadata(askMapRef);
+
+        // remove all fills
+        fills = new Fill[](0);
 
         ////// First part: prioritize the cancel orders
         for (uint256 i = 0; i < cancels.length; i++) {
