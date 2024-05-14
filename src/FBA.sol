@@ -88,21 +88,12 @@ contract FBA {
     }
 
     /**
-     * @notice Allows user to place a new order and immediately checks for fills
+     * @notice Allows user to place a new order
      */
     function placeOrder(FBAHeap.Order memory ord) external returns (bytes memory) {
-        // Add it to bids or asks heap...
-        if (ord.side == ISBUY) {
-            FBAHeap.ArrayMetadata memory bidAm = FBAHeap.arrGetMetadata(bidArrayRef);
-            FBAHeap.MapMetadata memory bidMm = FBAHeap.mapGetMetadata(bidMapRef);
-            FBAHeap.insertOrder(ord, bidAm, bidMm);
-        } else if (ord.side == ISSELL) {
-            FBAHeap.ArrayMetadata memory askAm = FBAHeap.arrGetMetadata(askArrayRef);
-            FBAHeap.MapMetadata memory askMm = FBAHeap.mapGetMetadata(askMapRef);
-            FBAHeap.insertOrder(ord, askAm, askMm);
-        }
+        (FBAHeap.ArrayMetadata memory am, FBAHeap.MapMetadata memory mm) = getMetadata(ord.side);
+        FBAHeap.insertOrder(ord, am, mm);
 
-        // Assuming order placement was always successful?
         PlaceResult memory placeResult = PlaceResult(ord.price, ord.side, ord.amount);
         return abi.encodeWithSelector(this.placeOrderCallback.selector, placeResult);
     }
@@ -121,15 +112,13 @@ contract FBA {
      * @notice Executes fills for the current state of the order book
      */
     function executeFills() external returns (bytes memory) {
-        FBAHeap.ArrayMetadata memory bidAm = FBAHeap.arrGetMetadata(bidArrayRef);
-        FBAHeap.MapMetadata memory bidMm = FBAHeap.mapGetMetadata(bidMapRef);
-        FBAHeap.ArrayMetadata memory askAm = FBAHeap.arrGetMetadata(askArrayRef);
-        FBAHeap.MapMetadata memory askMm = FBAHeap.mapGetMetadata(askMapRef);
+        (FBAHeap.ArrayMetadata memory bidAm, FBAHeap.MapMetadata memory bidMm) = getMetadata(ISBUY);
+        (FBAHeap.ArrayMetadata memory askAm, FBAHeap.MapMetadata memory askMm) = getMetadata(ISSELL);
 
-        // Remove all fills
+        // Reset fills
         fills = new Fill[](0);
 
-        ////// First part: prioritize the cancel orders
+        ////// First part: prioritize cancels
         for (uint256 i = 0; i < cancels.length; i++) {
             string memory orderId = cancels[i].orderId;
             bool side = cancels[i].side;
@@ -140,13 +129,14 @@ contract FBA {
                 FBAHeap.deleteOrder(orderId, side, askAm, askMm);
             }
         }
-        // Remove all cancel orders
         cancels = new Cancel[](0);
 
         ////// Second part: match orders with the same price
         FBAHeap.Order[] memory bids;
         FBAHeap.Order[] memory asks;
         (bids, asks) = getMatchingOrderCandidates(bidAm, askAm);
+
+        // If there are no bids or asks at all, return
         if (bids.length == 0 || asks.length == 0) {
             return abi.encodeWithSelector(this.executeFillsCallback.selector, fills);
         }
@@ -186,7 +176,7 @@ contract FBA {
         bidTotalAmount = getTotalAmount(bids);
         askTotalAmount = getTotalAmount(asks);
 
-        // match orders with different prices
+        // Match orders with different prices
         executeMatch(bids, asks, averagePrice, bidTotalAmount, askTotalAmount, bidAm, bidMm, askAm, askMm);
 
         return abi.encodeWithSelector(this.executeFillsCallback.selector, fills);
@@ -278,6 +268,17 @@ contract FBA {
             totalAmount += ords[i].amount;
         }
         return totalAmount;
+    }
+
+    /**
+     * @notice Returns the metadata of the array and map
+     */
+    function getMetadata(bool side) internal returns (FBAHeap.ArrayMetadata memory, FBAHeap.MapMetadata memory) {
+        if (side == ISBUY) {
+            return (FBAHeap.arrGetMetadata(bidArrayRef), FBAHeap.mapGetMetadata(bidMapRef));
+        } else if (side == ISSELL) {
+            return (FBAHeap.arrGetMetadata(askArrayRef), FBAHeap.mapGetMetadata(askMapRef));
+        }
     }
 
     /**
