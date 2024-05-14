@@ -8,9 +8,6 @@ import "suave-std/suavelib/Suave.sol";
 // Library with a heap specifically built for a limit orderbook
 
 library FBAHeap {
-    // TODO - switch bool side to be this enum
-    // enum Side {BID, ASK}
-
     // Currently all orders are GTC limit orders
     struct Order {
         uint256 price;
@@ -20,12 +17,12 @@ library FBAHeap {
         string orderId;
     }
 
-    // map will track the indices of the orders
+    // Map will track the indices of the orders
     struct MapMetadata {
         Suave.DataId ref;
     }
 
-    // array will store the actual orders
+    // Array will store the actual orders
     struct ArrayMetadata {
         uint256 length;
         Suave.DataId ref;
@@ -219,14 +216,12 @@ library FBAHeap {
         require(index < am.length, "Index out of bounds");
         uint256 lastIndex = am.length - 1;
 
-        // TODO - should this be at the end?
         am.length -= 1;
         arrSetMetadata(am);
 
         // Get the item we're deleting to return it
         Order memory deletedItem = getOrder(index, am);
 
-        // if the index is last, ...
         if (index == lastIndex) {
             return deletedItem;
         }
@@ -260,12 +255,12 @@ library FBAHeap {
      */
     function heapifyUp(uint256 index, bool isMaxHeap, ArrayMetadata memory am, MapMetadata memory mm) private {
         // Sorting based on price - but depending on whether bids or asks we
-        // need to sort in different directions
+        // Need to sort in different directions
         while (index > 0) {
             uint256 indexParent = (index - 1) / 2;
             bytes memory ordBytes = arrGet(index, am);
             bytes memory ordParentBytes = arrGet(indexParent, am);
-            // need to decode values
+            // Need to decode values
             Order memory ord = abi.decode(ordBytes, (Order));
             Order memory ordParent = abi.decode(ordParentBytes, (Order));
 

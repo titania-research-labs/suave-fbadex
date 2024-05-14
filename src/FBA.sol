@@ -126,7 +126,7 @@ contract FBA {
         FBAHeap.ArrayMetadata memory askAm = FBAHeap.arrGetMetadata(askArrayRef);
         FBAHeap.MapMetadata memory askMm = FBAHeap.mapGetMetadata(askMapRef);
 
-        // remove all fills
+        // Remove all fills
         fills = new Fill[](0);
 
         ////// First part: prioritize the cancel orders
@@ -140,7 +140,7 @@ contract FBA {
                 FBAHeap.deleteOrder(orderId, side, askAm, askMm);
             }
         }
-        // remove all cancel orders
+        // Remove all cancel orders
         cancels = new Cancel[](0);
 
         ////// Second part: match orders with the same price
