@@ -131,144 +131,39 @@ contract FBA {
         }
         cancels = new Cancel[](0);
 
-        ////// Second part: match orders with the same price
-        FBAHeap.Order[] memory bids;
-        FBAHeap.Order[] memory asks;
-        (bids, asks) = getMatchingOrderCandidates(bidAm, askAm);
-
-        // If there are no bids or asks at all, return
-        if (bids.length == 0 || asks.length == 0) {
-            return abi.encodeWithSelector(this.executeFillsCallback.selector, fills);
-        }
-
-        uint256 previousPrice = 0;
-        FBAHeap.Order[] memory bidsAtPrice;
-        FBAHeap.Order[] memory asksAtPrice;
-        uint256 bidTotalAmount;
-        uint256 askTotalAmount;
-        for (uint256 i = 0; i < asks.length; i++) {
-            uint256 price = asks[i].price;
-
-            // If the price is the same as the previous price, skip the matching because it is already done
-            if (previousPrice == price) {
-                continue;
+        ////// Second part: match orders
+        FBAHeap.Order memory bidMax = FBAHeap.getTopOrder(bidAm, ISBUY);
+        FBAHeap.Order memory askMin = FBAHeap.getTopOrder(askAm, ISSELL);
+        uint256 clearingPrice = (bidMax.price + askMin.price) / 2;
+        // Match orders as long as:
+        // 1. The highest bid is less than the lowest ask
+        // 2. The clearing price is less than the highest bid and greater than the lowest ask
+        while (bidMax.price >= askMin.price && bidMax.price >= clearingPrice && askMin.price <= clearingPrice) {
+            if (bidMax.amount > askMin.amount) {
+                fills.push(Fill(clearingPrice, askMin.amount));
+                bidMax.amount -= askMin.amount;
+                FBAHeap.updateOrder(bidMax, bidAm, bidMm);
+                FBAHeap.deleteOrder(askMin.orderId, ISSELL, askAm, askMm);
+            } else if (bidMax.amount < askMin.amount) {
+                fills.push(Fill(clearingPrice, bidMax.amount));
+                askMin.amount -= bidMax.amount;
+                FBAHeap.updateOrder(askMin, askAm, askMm);
+                FBAHeap.deleteOrder(bidMax.orderId, ISBUY, bidAm, bidMm);
+            } else {
+                fills.push(Fill(clearingPrice, bidMax.amount));
+                FBAHeap.deleteOrder(bidMax.orderId, ISBUY, bidAm, bidMm);
+                FBAHeap.deleteOrder(askMin.orderId, ISSELL, askAm, askMm);
             }
 
-            // Get orders with the same price
-            (bidsAtPrice, bidTotalAmount) = getPriceOrdersWithStats(bids, price);
-            (asksAtPrice, askTotalAmount) = getPriceOrdersWithStats(asks, price);
-
-            // Match orders with the same price
-            executeMatch(bidsAtPrice, asksAtPrice, price, bidTotalAmount, askTotalAmount, bidAm, bidMm, askAm, askMm);
-
-            previousPrice = price;
+            // Update bidMax and askMin
+            bidMax = FBAHeap.getTopOrder(bidAm, ISBUY);
+            askMin = FBAHeap.getTopOrder(askAm, ISSELL);
         }
-
-        ////// Third part: match orders with different prices
-        // Get bids and asks again because the previous matching might have changed the order book
-        (bids, asks) = getMatchingOrderCandidates(bidAm, askAm);
-        if (bids.length == 0 || asks.length == 0) {
-            return abi.encodeWithSelector(this.executeFillsCallback.selector, fills);
-        }
-
-        // Get stats for matching orders
-        uint256 averagePrice = getAveragePrice(bids, asks);
-        bidTotalAmount = getTotalAmount(bids);
-        askTotalAmount = getTotalAmount(asks);
-
-        // Match orders with different prices
-        executeMatch(bids, asks, averagePrice, bidTotalAmount, askTotalAmount, bidAm, bidMm, askAm, askMm);
 
         return abi.encodeWithSelector(this.executeFillsCallback.selector, fills);
     }
 
     //////////// Internal methods
-
-    /**
-     * @notice Returns the list of orders with the same price and the total amount at the price
-     */
-    function getPriceOrdersWithStats(FBAHeap.Order[] memory ords, uint256 price)
-        internal
-        pure
-        returns (FBAHeap.Order[] memory ordersAtPrice, uint256 totalAmountAtPrice)
-    {
-        uint256 nOrds = 0;
-        for (uint256 j = 0; j < ords.length; j++) {
-            if (ords[j].price == price) {
-                nOrds++;
-            }
-        }
-        ordersAtPrice = new FBAHeap.Order[](nOrds);
-        uint256 nOrdsCount = 0; // The final value of `nOrdsCount` should be equal to `nOrds`
-        for (uint256 j = 0; j < ords.length; j++) {
-            if (ords[j].price == price) {
-                ordersAtPrice[nOrdsCount] = ords[j];
-                totalAmountAtPrice += ords[j].amount;
-                nOrdsCount++;
-            }
-        }
-    }
-
-    /**
-     * @notice Returns the list of orders that can be matched
-     */
-    function getMatchingOrderCandidates(FBAHeap.ArrayMetadata memory bidAm, FBAHeap.ArrayMetadata memory askAm)
-        internal
-        returns (FBAHeap.Order[] memory, FBAHeap.Order[] memory)
-    {
-        FBAHeap.Order[] memory empty = new FBAHeap.Order[](0);
-
-        // If there are no bids or asks at all, return empty tuple
-        if (bidAm.length == 0 || askAm.length == 0) {
-            return (empty, empty);
-        }
-        FBAHeap.Order memory greatestBid = FBAHeap.getTopOrder(bidAm, ISBUY);
-        FBAHeap.Order[] memory asksLessThanGreatestBid = FBAHeap.getTopOrderList(greatestBid.price, ISSELL, askAm);
-        // If there are no asks at all, return empty tuple because there is no match
-        if (asksLessThanGreatestBid.length == 0) {
-            return (empty, empty);
-        }
-        FBAHeap.Order[] memory bidsGreaterThanLeastAsk =
-            FBAHeap.getTopOrderList(asksLessThanGreatestBid[0].price, ISBUY, bidAm);
-
-        return (bidsGreaterThanLeastAsk, asksLessThanGreatestBid);
-    }
-
-    /**
-     * @notice Returns the average price of the orders
-     */
-    function getAveragePrice(FBAHeap.Order[] memory bids, FBAHeap.Order[] memory asks)
-        internal
-        pure
-        returns (uint256)
-    {
-        uint256 averagePrice = 0;
-        uint256 numNonZero = 0;
-        for (uint256 i = 0; i < bids.length; i++) {
-            if (bids[i].price != 0) {
-                averagePrice += bids[i].price;
-                numNonZero++;
-            }
-        }
-        for (uint256 i = 0; i < asks.length; i++) {
-            if (asks[i].price != 0) {
-                averagePrice += asks[i].price;
-                numNonZero++;
-            }
-        }
-        return averagePrice / numNonZero;
-    }
-
-    /**
-     * @notice Returns the total amount of the orders
-     */
-    function getTotalAmount(FBAHeap.Order[] memory ords) internal pure returns (uint256) {
-        uint256 totalAmount = 0;
-        for (uint256 i = 0; i < ords.length; i++) {
-            totalAmount += ords[i].amount;
-        }
-        return totalAmount;
-    }
 
     /**
      * @notice Returns the metadata of the array and map
@@ -278,72 +173,6 @@ contract FBA {
             return (FBAHeap.arrGetMetadata(bidArrayRef), FBAHeap.mapGetMetadata(bidMapRef));
         } else if (side == ISSELL) {
             return (FBAHeap.arrGetMetadata(askArrayRef), FBAHeap.mapGetMetadata(askMapRef));
-        }
-    }
-
-    /**
-     * @notice Executes the match between the orders
-     */
-    function executeMatch(
-        FBAHeap.Order[] memory bidOrds,
-        FBAHeap.Order[] memory askOrds,
-        uint256 price,
-        uint256 bidTotalAmount,
-        uint256 askTotalAmount,
-        FBAHeap.ArrayMetadata memory bidAm,
-        FBAHeap.MapMetadata memory bidMm,
-        FBAHeap.ArrayMetadata memory askAm,
-        FBAHeap.MapMetadata memory askMm
-    ) internal {
-        if (bidTotalAmount == 0 || askTotalAmount == 0) {
-            // If either side is empty, return
-            return;
-        } else if (bidTotalAmount > askTotalAmount) {
-            // Ask side is fully filled
-            deleteMatchedOrders(askOrds, askAm, askMm);
-            updateMatchedOrders(bidOrds, bidTotalAmount, askTotalAmount, bidAm, bidMm);
-            fills.push(Fill(price, askTotalAmount));
-        } else if (bidTotalAmount < askTotalAmount) {
-            // Bid side is fully filled
-            deleteMatchedOrders(bidOrds, bidAm, bidMm);
-            updateMatchedOrders(askOrds, askTotalAmount, bidTotalAmount, askAm, askMm);
-            fills.push(Fill(price, bidTotalAmount));
-        } else {
-            // Both sides are fully filled
-            deleteMatchedOrders(bidOrds, bidAm, bidMm);
-            deleteMatchedOrders(askOrds, askAm, askMm);
-            fills.push(Fill(price, bidTotalAmount));
-        }
-    }
-
-    /**
-     * @notice Deletes the matched orders
-     */
-    function deleteMatchedOrders(
-        FBAHeap.Order[] memory ords,
-        FBAHeap.ArrayMetadata memory am,
-        FBAHeap.MapMetadata memory mm
-    ) internal {
-        for (uint256 i = 0; i < ords.length; i++) {
-            FBAHeap.deleteOrder(ords[i].orderId, ords[i].side, am, mm);
-        }
-    }
-
-    /**
-     * @notice Updates the matched orders
-     */
-    function updateMatchedOrders(
-        FBAHeap.Order[] memory ords,
-        uint256 greaterTotalAmount,
-        uint256 smallerTotalAmount,
-        FBAHeap.ArrayMetadata memory am,
-        FBAHeap.MapMetadata memory mm
-    ) internal {
-        uint256 fillRatio = smallerTotalAmount / greaterTotalAmount;
-        for (uint256 i = 0; i < ords.length; i++) {
-            FBAHeap.Order memory order = ords[i];
-            order.amount -= fillRatio * order.amount;
-            FBAHeap.updateOrder(order, am, mm);
         }
     }
 
