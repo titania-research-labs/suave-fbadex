@@ -37,7 +37,7 @@ $ forge doc --serve --port 4000
 ```
 
 ## Overview
-## Overview of the FBA Process
+### Overview of the FBA Process
 
 The FBA process revolves around three main functions:
 
@@ -45,7 +45,7 @@ The FBA process revolves around three main functions:
 2. **`cancelOrder`**: Enables users to cancel their previously placed orders.
 3. **`executeFills`**: Executed by the operator at regular intervals to match and fulfill orders.
 
-## Key Roles and Interaction Diagram
+### Key Roles and Interaction Diagram
 
 We can illustrate the interaction between the main participants
 
