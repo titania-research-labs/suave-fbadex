@@ -19,6 +19,7 @@ $ forge build
 ### Test
 
 Use the ffi flag with Forge.
+You should have a Suave node running on your local machine.
 
 ```shell
 $ forge test --ffi
